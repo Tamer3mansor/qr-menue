@@ -61,9 +61,10 @@ return [
             'engine' => null,
 
             // هذا الجزء هو المسؤول عن تفعيل الاتصال المشفر لـ TiDB
-            'options' => [
+           'options' => array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
                 PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-            ],
+            ]),
         ],
 
         'mariadb' => [
