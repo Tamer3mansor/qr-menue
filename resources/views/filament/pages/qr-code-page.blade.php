@@ -10,13 +10,13 @@
             </x-slot>
 
             <x-slot name="description">
-                Scanning this code opens the public menu for this restaurant.
+                مسح هذا الكود يفتح القائمة العامة للمطعم.
             </x-slot>
 
             <div class="flex flex-col items-center gap-6">
                 <img
                     src="{{ $qrCode->image_url }}"
-                    alt="QR code for {{ $qrCode->url }}"
+                    alt="كود QR لـ {{ $qrCode->url }}"
                     width="320"
                     height="320"
                     class="rounded-xl bg-white p-4"
@@ -35,7 +35,7 @@
     @else
         <x-filament::section>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                No QR code has been generated yet.
+                لم يتم إنشاء كود QR بعد.
             </p>
         </x-filament::section>
     @endif

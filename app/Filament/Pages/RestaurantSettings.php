@@ -22,7 +22,9 @@ class RestaurantSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
 
-    protected static ?string $navigationLabel = 'Restaurant Settings';
+    protected static ?string $navigationLabel = 'إعدادات المطعم';
+
+    protected static ?string $title = 'إعدادات المطعم';
 
     /**
      * Navigation items fall back to a sort of -1, so a high value keeps this
@@ -56,33 +58,33 @@ class RestaurantSettings extends Page
                         Section::make()
                             ->schema([
                                 TextInput::make('restaurant_name')
-                                    ->label('Restaurant name')
+                                    ->label('اسم المطعم')
                                     ->required()
                                     ->maxLength(255),
                                 TextInput::make('phone')
-                                    ->label('Phone')
+                                    ->label('الهاتف')
                                     ->maxLength(255),
                                 TextInput::make('currency')
-                                    ->label('Currency')
+                                    ->label('العملة')
                                     ->default(Setting::DEFAULT_CURRENCY)
                                     ->maxLength(255),
                                 ColorPicker::make('primary_color')
-                                    ->label('Primary color')
+                                    ->label('اللون الأساسي')
                                     ->hex()
                                     ->default('#000000'),
                                 ColorPicker::make('secondary_color')
-                                    ->label('Secondary color')
+                                    ->label('اللون الثانوي')
                                     ->hex()
                                     ->default('#ffffff'),
                                 FileUpload::make('logo')
-                                    ->label('Logo')
+                                    ->label('الشعار')
                                     ->image()
                                     ->disk('public')
                                     ->directory('logos')
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                                     ->maxSize(2048),
                                 FileUpload::make('bg_image')
-                                    ->label('Background image')
+                                    ->label('صورة الخلفية')
                                     ->image()
                                     ->disk('public')
                                     ->directory('backgrounds')
@@ -102,7 +104,7 @@ class RestaurantSettings extends Page
         $this->setting()->update($this->form->getState());
 
         Notification::make()
-            ->title('Settings saved.')
+            ->title('تم حفظ الإعدادات.')
             ->success()
             ->send();
     }
@@ -110,7 +112,7 @@ class RestaurantSettings extends Page
     protected function getSaveAction(): Action
     {
         return Action::make('save')
-            ->label('Save')
+            ->label('حفظ')
             ->submit('save');
     }
 

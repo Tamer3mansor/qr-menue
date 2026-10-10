@@ -56,7 +56,7 @@ class ChangePasswordPageTest extends TestCase
 
     public function test_the_page_is_listed_in_the_sidebar(): void
     {
-        $this->assertSame('Change Password', ChangePassword::getNavigationLabel());
+        $this->assertSame('تغيير كلمة المرور', ChangePassword::getNavigationLabel());
 
         $this->assertNotNull(ChangePassword::getNavigationIcon());
 
@@ -83,9 +83,9 @@ class ChangePasswordPageTest extends TestCase
         );
 
         $response->assertSuccessful();
-        $response->assertSee('Current password');
-        $response->assertSee('New password');
-        $response->assertSee('Confirm new password');
+        $response->assertSee('كلمة المرور الحالية');
+        $response->assertSee('كلمة المرور الجديدة');
+        $response->assertSee('تأكيد كلمة المرور الجديدة');
         $response->assertSee('<form wire:submit="save"', escape: false);
     }
 
@@ -113,7 +113,7 @@ class ChangePasswordPageTest extends TestCase
     public function test_a_success_notification_is_sent(): void
     {
         $this->submit()
-            ->assertNotified(Notification::make()->title('Password changed.')->success());
+            ->assertNotified(Notification::make()->title('تم تغيير كلمة المرور.')->success());
     }
 
     public function test_the_form_is_cleared_after_a_successful_change(): void

@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['user_id', 'item_id', 'title', 'offer_price', 'is_active', 'expires_at'])]
+#[Fillable(['user_id', 'title', 'image', 'offer_price', 'is_active', 'expires_at'])]
 class Offer extends Model
 {
     /** @use HasFactory<OfferFactory> */
@@ -61,17 +63,39 @@ class Offer extends Model
     }
 
     /**
-     * The discount this offer represents, as a whole percentage of the item price.
+     * The discount this offer represents, as a whole percentage.
+     *
+     * Against a specific item the item's own price is used. Without one the
+     * combined price of every attached item is used, matching the struck-through
+     * total the offer cards display.
      */
-    public function discountPercentage(): ?int
+    public function discountPercentage(?Item $item = null): ?int
     {
-        $itemPrice = (float) $this->item?->price;
+        $referencePrice = (float) ($item?->price ?? $this->totalItemsPrice());
 
-        if ($itemPrice <= 0) {
+        if ($referencePrice <= 0) {
             return null;
         }
 
-        return (int) round((($itemPrice - (float) $this->offer_price) / $itemPrice) * 100);
+        return (int) round((($referencePrice - (float) $this->offer_price) / $referencePrice) * 100);
+    }
+
+    /**
+     * The combined price of every attached item, the figure the offer cards
+     * show struck through.
+     */
+    public function totalItemsPrice(): float
+    {
+        return (float) $this->items->sum('price');
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if (blank($this->image)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->image);
     }
 
     /**
@@ -103,8 +127,8 @@ class Offer extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function item(): BelongsTo
+    public function items(): BelongsToMany
     {
-        return $this->belongsTo(Item::class);
+        return $this->belongsToMany(Item::class, 'offer_item');
     }
 }

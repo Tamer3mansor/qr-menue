@@ -24,9 +24,9 @@ class ChangePassword extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
-    protected static ?string $navigationLabel = 'Change Password';
+    protected static ?string $navigationLabel = 'تغيير كلمة المرور';
 
-    protected static ?string $title = 'Change Password';
+    protected static ?string $title = 'تغيير كلمة المرور';
 
     /**
      * Navigation items fall back to a sort of -1, so this sits below the other
@@ -58,7 +58,7 @@ class ChangePassword extends Page
                         Section::make()
                             ->schema([
                                 TextInput::make('current_password')
-                                    ->label('Current password')
+                                    ->label('كلمة المرور الحالية')
                                     ->password()
                                     ->revealable()
                                     ->required()
@@ -72,7 +72,7 @@ class ChangePassword extends Page
                                         }
                                     }),
                                 TextInput::make('new_password')
-                                    ->label('New password')
+                                    ->label('كلمة المرور الجديدة')
                                     ->password()
                                     ->revealable()
                                     ->required()
@@ -80,9 +80,9 @@ class ChangePassword extends Page
                                     ->confirmed()
                                     ->autocomplete('new-password')
                                     ->different('current_password')
-                                    ->helperText('At least 8 characters, and not the one you are using now.'),
+                                    ->helperText('8 أحرف على الأقل، ولا تكون نفس كلمة المرور الحالية.'),
                                 TextInput::make('new_password_confirmation')
-                                    ->label('Confirm new password')
+                                    ->label('تأكيد كلمة المرور الجديدة')
                                     ->password()
                                     ->revealable()
                                     ->required()
@@ -105,7 +105,7 @@ class ChangePassword extends Page
         ])->save();
 
         Notification::make()
-            ->title('Password changed.')
+            ->title('تم تغيير كلمة المرور.')
             ->success()
             ->send();
 
@@ -115,7 +115,7 @@ class ChangePassword extends Page
     protected function getSaveAction(): Action
     {
         return Action::make('save')
-            ->label('Change password')
+            ->label('تغيير كلمة المرور')
             ->submit('save');
     }
 

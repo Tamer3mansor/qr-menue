@@ -162,9 +162,8 @@ class DemoSeeder extends Seeder
 
             foreach ($section['items'] as $itemSortOrder => $item) {
                 $items[$item['title']] = Item::query()->updateOrCreate(
-                    ['category_id' => $category->getKey(), 'title' => $item['title']],
+                    ['user_id' => $tenant->getKey(), 'title' => $item['title']],
                     [
-                        'user_id' => $tenant->getKey(),
                         'description' => null,
                         'price' => $item['price'],
                         'is_available' => true,
@@ -172,6 +171,8 @@ class DemoSeeder extends Seeder
                         'sort_order' => $itemSortOrder + 1,
                     ],
                 );
+
+                $items[$item['title']]->categories()->syncWithoutDetaching([$category->getKey()]);
             }
         }
 
@@ -191,14 +192,13 @@ class DemoSeeder extends Seeder
             }
 
             Offer::query()->updateOrCreate(
-                ['item_id' => $item->getKey(), 'title' => $offer['title']],
+                ['user_id' => $tenant->getKey(), 'title' => $offer['title']],
                 [
-                    'user_id' => $tenant->getKey(),
                     'offer_price' => $offer['offer_price'],
                     'is_active' => true,
                     'expires_at' => null,
                 ],
-            );
+            )->items()->syncWithoutDetaching([$item->getKey()]);
         }
     }
 }

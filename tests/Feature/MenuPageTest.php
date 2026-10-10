@@ -35,9 +35,8 @@ class MenuPageTest extends TestCase
 
     protected function item(Category $category, array $attributes = []): Item
     {
-        return Item::factory()->create([
+        return Item::factory()->hasAttached($category)->create([
             'user_id' => $this->user,
-            'category_id' => $category,
             ...$attributes,
         ]);
     }
@@ -48,6 +47,57 @@ class MenuPageTest extends TestCase
             'user_id' => $this->user,
             ...$attributes,
         ]);
+    }
+
+    /**
+     * An active offer attached to a single item, which styles that item's card.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function singleOffer(Item $item, array $attributes = []): Offer
+    {
+        $offer = Offer::factory()->create([
+            'user_id' => $this->user,
+            'is_active' => true,
+            ...$attributes,
+        ]);
+
+        $offer->items()->attach($item->getKey());
+
+        return $offer;
+    }
+
+    /**
+     * An active offer attached to several items, which lives in the combo section.
+     *
+     * @param  array<int, int>  $itemIds
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function comboOffer(array $itemIds, array $attributes = []): Offer
+    {
+        $offer = Offer::factory()->create([
+            'user_id' => $this->user,
+            'is_active' => true,
+            ...$attributes,
+        ]);
+
+        $offer->items()->attach($itemIds);
+
+        return $offer;
+    }
+
+    /**
+     * The rendered combo section, which always sits above the category grid.
+     */
+    protected function comboSection(string $content): string
+    {
+        $offersPosition = strpos($content, 'id="offers"');
+        $categoriesPosition = strpos($content, 'id="category-');
+
+        $this->assertNotFalse($offersPosition, 'The combo section is missing.');
+        $this->assertNotFalse($categoriesPosition);
+
+        return substr($content, $offersPosition, $categoriesPosition - $offersPosition);
     }
 
     public function test_a_menu_can_be_reached_by_the_tenant_id(): void
@@ -71,7 +121,7 @@ class MenuPageTest extends TestCase
         ]);
 
         $category = Category::factory()->create(['user_id' => $user]);
-        Item::factory()->create(['user_id' => $user, 'category_id' => $category, 'title' => 'Souvlaki']);
+        Item::factory()->hasAttached($category)->create(['user_id' => $user, 'title' => 'Souvlaki']);
 
         $this->get('/menu/kebab-palace')
             ->assertOk()
@@ -154,9 +204,8 @@ class MenuPageTest extends TestCase
         $category = $this->category();
         $item = $this->item($category, ['title' => 'OfferItem']);
 
-        Offer::factory()->create([
+        Offer::factory()->hasAttached($item)->create([
             'user_id' => $this->user,
-            'item_id' => $item,
             'is_active' => false,
         ]);
 
@@ -170,9 +219,8 @@ class MenuPageTest extends TestCase
         $category = $this->category();
         $item = $this->item($category, ['title' => 'ExpiredOfferItem']);
 
-        Offer::factory()->create([
+        Offer::factory()->hasAttached($item)->create([
             'user_id' => $this->user,
-            'item_id' => $item,
             'is_active' => true,
             'expires_at' => now()->subDay(),
         ]);
@@ -187,16 +235,14 @@ class MenuPageTest extends TestCase
             ->assertDontSee('عرض');
     }
 
-    public function test_running_offers_are_shown_before_the_categories(): void
+    public function test_running_combo_offers_are_shown_before_the_categories(): void
     {
         $category = $this->category(['name' => 'MainCourse']);
-        $item = $this->item($category, ['title' => 'OfferItem', 'price' => 200]);
+        $kebab = $this->item($category, ['title' => 'ComboKebab', 'price' => 200]);
+        $shawarma = $this->item($category, ['title' => 'ComboShawarma', 'price' => 100]);
 
-        Offer::factory()->create([
-            'user_id' => $this->user,
-            'item_id' => $item,
-            'is_active' => true,
-            'offer_price' => 140,
+        $offer = $this->comboOffer([$kebab->getKey(), $shawarma->getKey()], [
+            'offer_price' => 210,
             'expires_at' => now()->addDay(),
         ]);
 
@@ -209,8 +255,107 @@ class MenuPageTest extends TestCase
         $this->assertNotFalse($categoryPosition);
         $this->assertLessThan($categoryPosition, $offersPosition);
 
-        $response->assertSee('عرض')
+        // 200 + 100 = 300 against an offer price of 210 is 30% off.
+        $response->assertSee('عروض خاصة')
             ->assertSee('خصم 30%');
+    }
+
+    public function test_a_single_item_offer_styles_its_item_in_the_grid(): void
+    {
+        $category = $this->category();
+        $item = $this->item($category, ['title' => 'GrilledKebab', 'price' => 200]);
+
+        $this->singleOffer($item, ['offer_price' => 140, 'title' => null]);
+
+        $response = $this->get("/menu/{$this->user->id}")->assertOk();
+
+        $response->assertSee('<span class="badge">عرض</span>', false)
+            ->assertSee('ج.م 140.00')
+            ->assertSee('ج.م 200.00')
+            ->assertDontSee('عروض خاصة')
+            ->assertDontSee('id="offers"', false);
+    }
+
+    public function test_a_combo_offer_does_not_style_the_items_in_the_grid(): void
+    {
+        $category = $this->category();
+        $kebab = $this->item($category, ['title' => 'PlainKebab', 'price' => 200]);
+        $shawarma = $this->item($category, ['title' => 'PlainShawarma', 'price' => 100]);
+
+        $this->comboOffer([$kebab->getKey(), $shawarma->getKey()], [
+            'offer_price' => 210,
+            'title' => 'كومبو الشيش',
+        ]);
+
+        $response = $this->get("/menu/{$this->user->id}")->assertOk();
+
+        // The grid cards keep their plain prices; only the combo section discounts.
+        $response->assertDontSee('<span class="badge">عرض</span>', false)
+            ->assertSee('ج.م 200.00')
+            ->assertSee('ج.م 100.00')
+            ->assertSee('عروض خاصة');
+    }
+
+    public function test_combo_offers_render_in_their_own_section(): void
+    {
+        $category = $this->category();
+        $kebab = $this->item($category, ['title' => 'SectionKebab', 'price' => 200]);
+        $shawarma = $this->item($category, ['title' => 'SectionShawarma', 'price' => 100]);
+
+        $this->comboOffer([$kebab->getKey(), $shawarma->getKey()], [
+            'offer_price' => 210,
+            'title' => null,
+        ]);
+
+        $content = $this->get("/menu/{$this->user->id}")->assertOk()->getContent();
+
+        $section = $this->comboSection($content);
+
+        $this->assertStringContainsString('عروض خاصة', $section);
+        $this->assertStringContainsString('كومبو خاص', $section);
+        $this->assertStringContainsString('SectionKebab', $section);
+        $this->assertStringContainsString('SectionShawarma', $section);
+        $this->assertStringContainsString('ج.م 300.00', $section);
+        $this->assertStringContainsString('ج.م 210.00', $section);
+    }
+
+    public function test_a_single_offer_is_not_rendered_in_the_combo_section(): void
+    {
+        $category = $this->category();
+        $solo = $this->item($category, ['title' => 'SoloItem', 'price' => 200]);
+        $kebab = $this->item($category, ['title' => 'ComboItemA', 'price' => 100]);
+        $shawarma = $this->item($category, ['title' => 'ComboItemB', 'price' => 100]);
+
+        $this->singleOffer($solo, ['offer_price' => 150, 'title' => 'عرض السولو']);
+        $this->comboOffer([$kebab->getKey(), $shawarma->getKey()], [
+            'offer_price' => 150,
+            'title' => 'كومبو مزدوج',
+        ]);
+
+        $content = $this->get("/menu/{$this->user->id}")->assertOk()->getContent();
+
+        $section = $this->comboSection($content);
+
+        $this->assertStringNotContainsString('SoloItem', $section);
+        $this->assertStringNotContainsString('عرض السولو', $section);
+        $this->assertStringContainsString('كومبو مزدوج', $section);
+
+        // The single offer still styles its own card in the grid.
+        $this->assertStringContainsString('<span class="badge">عرض</span>', $content);
+    }
+
+    public function test_the_combo_section_is_hidden_when_there_are_no_combo_offers(): void
+    {
+        $category = $this->category();
+        $item = $this->item($category, ['title' => 'OnlySingle', 'price' => 200]);
+
+        $this->singleOffer($item, ['offer_price' => 140, 'title' => 'عرض سولو']);
+
+        $response = $this->get("/menu/{$this->user->id}")->assertOk();
+
+        $response->assertDontSee('عروض خاصة')
+            ->assertDontSee('id="offers"', false)
+            ->assertSee('<span class="badge">عرض</span>', false);
     }
 
     public function test_an_offer_hides_the_original_price_and_shows_the_offer_price(): void
@@ -218,9 +363,8 @@ class MenuPageTest extends TestCase
         $category = $this->category();
         $item = $this->item($category, ['title' => 'DiscountedItem', 'price' => 200]);
 
-        Offer::factory()->create([
+        Offer::factory()->hasAttached($item)->create([
             'user_id' => $this->user,
-            'item_id' => $item,
             'is_active' => true,
             'offer_price' => 140,
         ]);
@@ -259,6 +403,37 @@ class MenuPageTest extends TestCase
             strpos($content, 'id="category-'.$second->id.'"'),
             strpos($content, 'id="category-'.$first->id.'"')
         );
+    }
+
+    public function test_menu_cards_expose_their_categories_for_the_filter(): void
+    {
+        $grill = $this->category(['name' => 'مشاوي']);
+        $drinks = $this->category(['name' => 'مشروبات']);
+
+        $kebab = $this->item($grill, ['title' => 'Kebab']);
+        $cola = $this->item($drinks, ['title' => 'Cola']);
+
+        $combo = $this->item($grill, ['title' => 'Combo']);
+        $combo->categories()->attach($drinks->getKey());
+
+        $content = $this->get("/menu/{$this->user->id}")->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-filter="all"', $content);
+        $this->assertStringContainsString('data-filter="'.$grill->id.'"', $content);
+        $this->assertStringContainsString('data-filter="'.$drinks->id.'"', $content);
+
+        $this->assertStringContainsString('data-categories="'.$kebab->id.'"', $content);
+        $this->assertStringContainsString('data-categories="'.$cola->id.'"', $content);
+
+        preg_match_all('/data-categories="([^"]*)"/', $content, $matches);
+
+        $listsBothCategories = collect($matches[1])->contains(function (string $value) use ($grill, $drinks): bool {
+            $ids = array_map('intval', explode(',', $value));
+
+            return in_array($grill->id, $ids, true) && in_array($drinks->id, $ids, true);
+        });
+
+        $this->assertTrue($listsBothCategories, 'A card must list every category it belongs to.');
     }
 
     public function test_the_brand_colors_are_applied_as_css_variables(): void

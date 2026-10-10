@@ -63,7 +63,7 @@ class CategoryResourceTest extends TestCase
     public function test_the_table_shows_the_item_count_for_each_category(): void
     {
         $category = Category::factory()->create(['user_id' => $this->tenant]);
-        Item::factory()->count(3)->create(['user_id' => $this->tenant, 'category_id' => $category]);
+        Item::factory()->count(3)->hasAttached($category)->create(['user_id' => $this->tenant]);
 
         Livewire::test(ListCategories::class)
             ->assertCanSeeTableRecords([$category])

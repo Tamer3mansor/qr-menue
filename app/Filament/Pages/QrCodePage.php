@@ -19,9 +19,9 @@ class QrCodePage extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQrCode;
 
-    protected static ?string $navigationLabel = 'QR Code';
+    protected static ?string $navigationLabel = 'كود QR';
 
-    protected static ?string $title = 'QR Code';
+    protected static ?string $title = 'كود QR';
 
     protected static ?int $navigationSort = 90;
 
@@ -57,7 +57,7 @@ class QrCodePage extends Page
             ->getKey();
 
         Notification::make()
-            ->title('QR code regenerated.')
+            ->title('تم إعادة توليد كود QR.')
             ->success()
             ->send();
     }
@@ -68,7 +68,7 @@ class QrCodePage extends Page
 
         if (blank($qrCode?->image_path)) {
             Notification::make()
-                ->title('There is no QR code to download.')
+                ->title('لا يوجد كود QR للتنزيل.')
                 ->danger()
                 ->send();
 
@@ -88,11 +88,11 @@ class QrCodePage extends Page
     {
         return [
             Action::make('regenerate')
-                ->label('Regenerate QR Code')
+                ->label('إعادة توليد كود QR')
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->action(fn (): null => $this->regenerate()),
             Action::make('download')
-                ->label('Download QR Code')
+                ->label('تنزيل كود QR')
                 ->icon(Heroicon::OutlinedArrowDownTray)
                 ->action(fn (): ?StreamedResponse => $this->download()),
         ];

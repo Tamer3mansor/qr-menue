@@ -22,9 +22,21 @@ class StopImpersonating extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowLeftOnRectangle;
 
-    protected static ?string $title = 'Stop impersonating';
-
     protected string $view = 'filament.super-admin.stop-impersonating';
+
+    /**
+     * The page is shared by the Arabic customer panel and the English super
+     * admin panel, so both labels resolve through the translator at runtime.
+     */
+    public static function getNavigationLabel(): string
+    {
+        return __('Stop impersonating');
+    }
+
+    public function getTitle(): string
+    {
+        return __('Stop impersonating');
+    }
 
     public static function canAccess(): bool
     {

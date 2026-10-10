@@ -37,7 +37,6 @@ class WebsiteSettingsPageTest extends TestCase
             ->assertSchemaComponentExists('branches')
             ->assertSchemaComponentExists('social_links.facebook')
             ->assertSchemaComponentExists('social_links.instagram')
-            ->assertSchemaComponentExists('social_links.whatsapp')
             ->assertSchemaComponentExists('social_links.tiktok')
             ->assertSchemaComponentExists('seo_title')
             ->assertSchemaComponentExists('seo_description')
@@ -130,7 +129,6 @@ class WebsiteSettingsPageTest extends TestCase
                 'social_links' => [
                     'facebook' => 'https://facebook.com/layali',
                     'instagram' => 'https://instagram.com/layali',
-                    'whatsapp' => '201001234567',
                     'tiktok' => 'https://tiktok.com/@layali',
                 ],
             ])
@@ -141,8 +139,9 @@ class WebsiteSettingsPageTest extends TestCase
 
         $this->assertSame('https://facebook.com/layali', $links['facebook']);
         $this->assertSame('https://instagram.com/layali', $links['instagram']);
-        $this->assertSame('201001234567', $links['whatsapp']);
         $this->assertSame('https://tiktok.com/@layali', $links['tiktok']);
+        // WhatsApp orders go through the phone number instead.
+        $this->assertArrayNotHasKey('whatsapp', $links);
     }
 
     public function test_an_invalid_social_url_is_rejected(): void
@@ -235,7 +234,7 @@ class WebsiteSettingsPageTest extends TestCase
 
     public function test_it_is_listed_in_the_sidebar(): void
     {
-        $this->assertSame('Website Settings', WebsiteSettings::getNavigationLabel());
+        $this->assertSame('إعدادات الموقع', WebsiteSettings::getNavigationLabel());
 
         $this->assertNotNull(WebsiteSettings::getNavigationIcon());
 
@@ -262,8 +261,8 @@ class WebsiteSettingsPageTest extends TestCase
         );
 
         $response->assertSuccessful();
-        $response->assertSee('Hero title');
-        $response->assertSee('SEO title');
+        $response->assertSee('عنوان الواجهة');
+        $response->assertSee('عنوان السيو');
         $response->assertSee('<form wire:submit="save"', escape: false);
     }
 

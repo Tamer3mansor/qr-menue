@@ -11,6 +11,7 @@
     $phone = $settings?->phone;
 
     $hasOffers = $offers->isNotEmpty();
+    $hasComboOffers = $comboOffers->isNotEmpty();
     $hasBranches = $branches !== [];
     $hasSocial = $socialLinks !== [];
 
@@ -149,14 +150,15 @@
             background: var(--card-bg); border: 1px solid var(--border);
             border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
             display: flex; flex-direction: column;
+            max-height: 300px;
         }
-        .card__media { position: relative; aspect-ratio: 4 / 3; background: var(--bg); }
-        .card__media img { width: 100%; height: 100%; object-fit: cover; }
+        .card__media { position: relative; height: 180px; background: var(--bg); }
+        .card__media img { width: 100%; height: 180px; object-fit: cover; }
         .card__placeholder {
             display: grid; place-items: center; width: 100%; height: 100%;
             color: var(--muted); font-size: 2rem;
         }
-        .card__body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .card__body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
         .card__title { margin: 0; font-size: 1.0625rem; }
         .card__desc { margin: 0; color: var(--muted); font-size: .875rem; }
         .card__foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -172,6 +174,47 @@
         .badge--featured { background: #f79009; }
         .badge--discount {
             position: static; display: inline-block; background: var(--secondary); color: #0b3d2c;
+        }
+
+        /* Combo offers */
+        .combo-thumbs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            padding: 8px;
+            width: 100%;
+            height: 100%;
+        }
+        .combo-thumbs img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+            background: var(--bg);
+        }
+        .combo-thumb-placeholder {
+            display: grid;
+            place-items: center;
+            background: var(--bg);
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 1.25rem;
+        }
+        .combo-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .combo-list li {
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: var(--bg);
+            color: var(--muted);
+            font-size: .8125rem;
+            font-weight: 600;
         }
 
         /* Filters */
@@ -243,7 +286,7 @@
                 @for ($pass = 0; $pass < 2; $pass++)
                     @foreach ($offers as $offer)
                         <span class="ticker__item">
-                            {{ $offer->title ?? $offer->item?->title }} —
+                            {{ $offer->title ?? $offer->items->pluck('title')->join('، ') }} —
                             <strong>{{ number_format((float) $offer->offer_price, 2) }} {{ $currency }}</strong>
                         </span>
                     @endforeach
@@ -266,7 +309,7 @@
             <nav class="site-nav" aria-label="التنقل الرئيسي">
                 <a class="site-nav__link" href="#home">الرئيسية</a>
                 <a class="site-nav__link" href="#products">المنتجات</a>
-                @if ($hasOffers)
+                @if ($hasComboOffers)
                     <a class="site-nav__link" href="#offers">العروض</a>
                 @endif
                 @if ($hasBranches)
@@ -295,10 +338,7 @@
                 @endif
 
                 <div class="hero__actions">
-                    <a class="btn btn--light" href="{{ $menuUrl }}">اطلب الآن</a>
-                    @if (filled($phone))
-                        <a class="btn btn--ghost" style="border-color:#fff;color:#fff;" href="tel:{{ $phone }}">اتصل بنا</a>
-                    @endif
+                    <a class="btn btn--light" href="{{ filled($phone) ? 'https://wa.me/'.$phone : $menuUrl }}">اطلب الآن</a>
                 </div>
             </div>
         </section>
@@ -307,11 +347,13 @@
             <section class="section section--alt" id="featured">
                 <div class="container">
                     <h2 class="section-title">أبرز منتجاتنا</h2>
-                    <p class="section-lead">اختيارات المطعم المفضلة.</p>
+                    <p class="section-lead">أبرز ما نقدمه.</p>
 
                     <div class="grid">
                         @foreach ($featured as $item)
-                            @php($offer = $offersByItem->get($item->getKey()))
+                            @php
+                                $offer = $offersByItem->get($item->getKey());
+                            @endphp
                             <article class="card">
                                 <div class="card__media">
                                     @if (filled($item->image_url))
@@ -373,7 +415,9 @@
 
                         <div class="grid">
                             @foreach ($category->items as $item)
-                                @php($offer = $offersByItem->get($item->getKey()))
+                                @php
+                                    $offer = $offersByItem->get($item->getKey());
+                                @endphp
                                 <article class="card item"
                                     data-item-id="{{ $item->getKey() }}"
                                     data-name="{{ $item->title }}"
@@ -419,33 +463,50 @@
             </div>
         </section>
 
-        @if ($hasOffers)
+        @if ($hasComboOffers)
             <section class="section section--alt" id="offers">
                 <div class="container">
-                    <h2 class="section-title">عروض اليوم</h2>
-                    <p class="section-lead">عروض محدودة المدة على أصناف مختارة.</p>
+                    <h2 class="section-title">عروض خاصة</h2>
+                    <p class="section-lead">كومبوهات بأفضل سعر.</p>
 
                     <div class="grid">
-                        @foreach ($offers as $offer)
+                        @foreach ($comboOffers as $offer)
                             <article class="card">
                                 <div class="card__media">
-                                    @if (filled($offer->item?->image_url))
-                                        <img src="{{ $offer->item->image_url }}" alt="{{ $offer->item->title }}">
+                                    @if ($offer->image_url)
+                                        <img src="{{ $offer->image_url }}" alt="{{ $offer->title ?: 'كومبو خاص' }}">
+                                    @elseif ($offer->items->contains(fn ($item): bool => filled($item->image_url)))
+                                        <div class="combo-thumbs">
+                                            @foreach ($offer->items as $item)
+                                                @if ($item->image_url)
+                                                    <img src="{{ $item->image_url }}" alt="{{ $item->title }}">
+                                                @else
+                                                    <div class="combo-thumb-placeholder">🍽️</div>
+                                                @endif
+                                            @endforeach
+                                        </div>
                                     @else
                                         <div class="card__placeholder" aria-hidden="true">🏷️</div>
                                     @endif
-                                    @if ($offer->discountPercentage() !== null)
+
+                                    @if (($offer->discountPercentage() ?? 0) > 0)
                                         <span class="badge badge--offer">خصم {{ $offer->discountPercentage() }}%</span>
                                     @endif
                                 </div>
                                 <div class="card__body">
-                                    <h3 class="card__title">{{ $offer->item?->title ?? 'صنف' }}</h3>
-                                    @if (filled($offer->title))
-                                        <p class="card__desc">{{ $offer->title }}</p>
-                                    @endif
+                                    <h3 class="card__title">{{ $offer->title ?: 'كومبو خاص' }}</h3>
+
+                                    <ul class="combo-list">
+                                        @foreach ($offer->items as $item)
+                                            <li>{{ $item->title }}</li>
+                                        @endforeach
+                                    </ul>
+
                                     <div class="card__foot">
                                         <span class="price">{{ number_format((float) $offer->offer_price, 2) }} {{ $currency }}</span>
-                                        <span class="price--old">{{ number_format((float) ($offer->item?->price ?? 0), 2) }} {{ $currency }}</span>
+                                        @if ($offer->totalItemsPrice() > 0)
+                                            <span class="price--old">{{ number_format($offer->totalItemsPrice(), 2) }} {{ $currency }}</span>
+                                        @endif
                                     </div>
                                 </div>
                             </article>
@@ -506,6 +567,9 @@
             @endif
 
             <div class="site-footer__meta">
+                @if (filled($phone))
+                    <span><a href="tel:{{ $phone }}">{{ $phone }}</a></span>
+                @endif
                 <span>جميع الحقوق محفوظة {{ now()->year }} — {{ $restaurantName }}</span>
                 <span>Powered by <a href="{{ route('landing') }}">QR Menu</a></span>
             </div>

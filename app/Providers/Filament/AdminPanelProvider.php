@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\SuperAdmin\Pages\StopImpersonating;
+use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -50,12 +51,14 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->userMenuItems([
                 'stop-impersonating' => MenuItem::make()
-                    ->label('Stop impersonating')
+                    ->label('إيقاف انتحال الهوية')
                     ->icon('heroicon-o-arrow-left-on-rectangle')
                     ->url(fn (): string => StopImpersonating::getUrl(tenant: Filament::getTenant()))
                     ->visible(fn (): bool => session()->has(StopImpersonating::SESSION_KEY)),
             ])
             ->middleware([
+                // Filament v5 reads its UI locale from the application locale.
+                SetPanelLocale::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

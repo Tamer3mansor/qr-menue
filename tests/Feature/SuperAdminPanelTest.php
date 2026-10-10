@@ -78,10 +78,26 @@ class SuperAdminPanelTest extends TestCase
                 'name' => 'Kebab Palace',
                 'email' => 'kebab@example.com',
                 'password' => 'secret-password',
+                'password_confirmation' => 'secret-password',
                 'domain' => 'kebab-palace',
                 'is_active' => true,
             ], $overrides))
             ->call('create');
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function tenantEditForm(User $tenant, array $overrides = []): array
+    {
+        return array_merge([
+            'name' => $tenant->name,
+            'email' => $tenant->email,
+            'domain' => $tenant->domain,
+            'is_active' => (bool) $tenant->is_active,
+            'subscription_expires_at' => $tenant->subscription_expires_at,
+        ], $overrides);
     }
 
     private function tenantByEmail(string $email = 'kebab@example.com'): User
@@ -583,7 +599,31 @@ class SuperAdminPanelTest extends TestCase
 
     public function test_the_password_is_required_and_must_be_at_least_eight_characters(): void
     {
-        $this->submitCreateTenant(['password' => 'short'])
+        $this->submitCreateTenant([
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])
+            ->assertHasFormErrors(['password']);
+
+        $this->assertSame(0, User::query()->where('is_super_admin', false)->count());
+    }
+
+    public function test_a_password_is_required_when_creating_a_tenant(): void
+    {
+        $this->submitCreateTenant([
+            'password' => null,
+            'password_confirmation' => null,
+        ])
+            ->assertHasFormErrors(['password']);
+
+        $this->assertSame(0, User::query()->where('is_super_admin', false)->count());
+    }
+
+    public function test_the_password_must_be_confirmed_when_creating_a_tenant(): void
+    {
+        $this->submitCreateTenant([
+            'password_confirmation' => 'not-the-same-password',
+        ])
             ->assertHasFormErrors(['password']);
 
         $this->assertSame(0, User::query()->where('is_super_admin', false)->count());
@@ -631,14 +671,102 @@ class SuperAdminPanelTest extends TestCase
         ]));
     }
 
-    public function test_editing_a_tenant_does_not_show_a_password_field(): void
+    public function test_the_edit_form_shows_a_password_field(): void
     {
         $tenant = User::factory()->create();
 
         $this->actingAsSuperAdmin()->onSuperAdminPanel();
 
         Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
-            ->assertFormFieldDoesNotExist('password');
+            ->assertFormFieldExists('password');
+    }
+
+    public function test_a_tenants_password_can_be_changed_from_the_edit_form(): void
+    {
+        $tenant = User::factory()->create();
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
+            ->fillForm($this->tenantEditForm($tenant, [
+                'password' => 'a-brand-new-password',
+                'password_confirmation' => 'a-brand-new-password',
+            ]))
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $password = $tenant->refresh()->password;
+
+        $this->assertNotSame('a-brand-new-password', $password);
+        $this->assertTrue(Hash::check('a-brand-new-password', $password));
+        $this->assertFalse(Hash::check('password', $password));
+    }
+
+    public function test_leaving_the_password_blank_on_edit_keeps_the_current_password(): void
+    {
+        $tenant = User::factory()->create();
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
+            ->fillForm($this->tenantEditForm($tenant, [
+                'name' => 'Renamed While Password Blank',
+                'password' => '',
+                'password_confirmation' => '',
+            ]))
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $tenant->refresh();
+
+        // The rest of the form still saves, so the untouched password is a
+        // deliberate choice rather than a form that never reached the record.
+        $this->assertSame('Renamed While Password Blank', $tenant->name);
+        $this->assertTrue(Hash::check('password', $tenant->password));
+
+        Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
+            ->fillForm($this->tenantEditForm($tenant, [
+                'password' => null,
+                'password_confirmation' => null,
+            ]))
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue(Hash::check('password', $tenant->refresh()->password));
+    }
+
+    public function test_the_password_must_be_at_least_eight_characters_on_edit(): void
+    {
+        $tenant = User::factory()->create();
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
+            ->fillForm($this->tenantEditForm($tenant, [
+                'password' => 'short',
+                'password_confirmation' => 'short',
+            ]))
+            ->call('save')
+            ->assertHasFormErrors(['password']);
+
+        $this->assertTrue(Hash::check('password', $tenant->refresh()->password));
+    }
+
+    public function test_the_password_must_be_confirmed_on_edit(): void
+    {
+        $tenant = User::factory()->create();
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(EditTenant::class, ['record' => $tenant->getKey()])
+            ->fillForm($this->tenantEditForm($tenant, [
+                'password' => 'a-brand-new-password',
+                'password_confirmation' => 'not-the-same-password',
+            ]))
+            ->call('save')
+            ->assertHasFormErrors(['password']);
+
+        $this->assertTrue(Hash::check('password', $tenant->refresh()->password));
     }
 
     public function test_the_create_form_shows_a_password_field(): void

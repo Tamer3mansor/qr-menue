@@ -46,13 +46,13 @@ class RestaurantSettingsPageTest extends TestCase
         );
 
         $response->assertSuccessful();
-        $response->assertSee('Restaurant name');
+        $response->assertSee('اسم المطعم');
         $response->assertSee('<form wire:submit="save"', escape: false);
     }
 
     public function test_it_is_listed_in_the_sidebar(): void
     {
-        $this->assertSame('Restaurant Settings', RestaurantSettings::getNavigationLabel());
+        $this->assertSame('إعدادات المطعم', RestaurantSettings::getNavigationLabel());
 
         $this->assertNotNull(RestaurantSettings::getNavigationIcon());
 
@@ -144,7 +144,7 @@ class RestaurantSettingsPageTest extends TestCase
             ->fillForm(['restaurant_name' => 'New Name'])
             ->call('save')
             ->assertHasNoFormErrors()
-            ->assertNotified(Notification::make()->title('Settings saved.')->success());
+            ->assertNotified(Notification::make()->title('تم حفظ الإعدادات.')->success());
     }
 
     public function test_saving_does_not_redirect(): void

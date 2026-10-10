@@ -21,6 +21,10 @@ class ItemResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 
+    protected static ?string $modelLabel = 'المنتج';
+
+    protected static ?string $pluralModelLabel = 'المنتجات';
+
     protected static ?string $recordTitleAttribute = 'title';
 
     public static function getEloquentQuery(): Builder

@@ -24,42 +24,48 @@ class ItemsTable
                     ->disk('public')
                     ->height(40),
                 TextColumn::make('title')
+                    ->label('الاسم')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('category.name')
-                    ->label('Category')
+                TextColumn::make('categories.name')
+                    ->label('التصنيفات')
                     ->badge()
                     ->searchable(),
                 TextColumn::make('price')
+                    ->label('السعر')
                     ->numeric()
                     ->suffix(fn (Item $record): string => ' '.Setting::currencyFor($record->user))
                     ->sortable(),
                 ToggleColumn::make('is_available')
+                    ->label('متاح')
                     ->sortable(),
                 IconColumn::make('is_featured')
-                    ->label('Featured')
+                    ->label('مميز')
                     ->boolean()
                     ->trueIcon('heroicon-s-star')
                     ->trueColor('success')
                     ->falseIcon('heroicon-o-star')
                     ->falseColor('gray'),
                 TextColumn::make('sort_order')
+                    ->label('الترتيب')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('created_at')
+                    ->label('تاريخ الإنشاء')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('category')
-                    ->relationship('category', 'name')
+                SelectFilter::make('categories')
+                    ->label('التصنيفات')
+                    ->relationship('categories', 'name')
                     ->searchable()
                     ->preload(),
                 TernaryFilter::make('is_available')
-                    ->label('Availability'),
+                    ->label('التوفر'),
                 TernaryFilter::make('is_featured')
-                    ->label('Featured'),
+                    ->label('مميز'),
             ])
             ->defaultSort('sort_order')
             ->reorderable('sort_order')

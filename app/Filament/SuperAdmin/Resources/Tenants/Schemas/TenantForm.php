@@ -7,6 +7,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class TenantForm
@@ -41,17 +42,29 @@ class TenantForm
                 // for a subscription that was deliberately left open ended.
                 ->default(fn (): mixed => $isCreating ? now()->addYear() : null)
                 ->helperText('Leave empty for a subscription that never expires.'),
-        ];
-
-        if ($isCreating) {
-            $components[] = TextInput::make('password')
+            TextInput::make('password')
                 ->label('Password')
                 ->password()
                 ->revealable()
-                ->required()
+                // Required while creating; on edit this same call becomes
+                // Filament's `nullable` rule, so a blank field is allowed
+                // through untouched.
+                ->required($isCreating)
                 ->minLength(8)
-                ->helperText('At least 8 characters. The customer receives it by email.');
-        }
+                ->confirmed()
+                // A blank password is dropped from the dehydrated data, so an
+                // untouched field never overwrites the stored hash.
+                ->dehydrated(fn (mixed $state): bool => filled($state))
+                ->helperText($isCreating
+                    ? 'At least 8 characters. The customer receives it by email.'
+                    : 'At least 8 characters. Leave empty to keep the current password.'),
+            TextInput::make('password_confirmation')
+                ->label('Confirm password')
+                ->password()
+                ->revealable()
+                ->dehydrated(false)
+                ->visible(fn (Get $get): bool => filled($get('password'))),
+        ];
 
         return $schema->components($components);
     }

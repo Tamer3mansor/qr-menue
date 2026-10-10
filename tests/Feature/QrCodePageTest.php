@@ -158,7 +158,7 @@ class QrCodePageTest extends TestCase
     {
         Livewire::test(QrCodePage::class)
             ->callAction('regenerate')
-            ->assertNotified(Notification::make()->title('QR code regenerated.')->success());
+            ->assertNotified(Notification::make()->title('تم إعادة توليد كود QR.')->success());
     }
 
     public function test_the_page_renders_the_image_and_a_clickable_link(): void

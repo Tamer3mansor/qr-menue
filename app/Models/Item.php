@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['user_id', 'category_id', 'title', 'description', 'price', 'image', 'is_available', 'is_featured', 'sort_order'])]
+#[Fillable(['user_id', 'title', 'description', 'price', 'image', 'is_available', 'is_featured', 'sort_order'])]
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
@@ -34,14 +34,14 @@ class Item extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function category(): BelongsTo
+    public function categories(): BelongsToMany
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Category::class, 'category_item');
     }
 
-    public function offers(): HasMany
+    public function offers(): BelongsToMany
     {
-        return $this->hasMany(Offer::class);
+        return $this->belongsToMany(Offer::class, 'offer_item');
     }
 
     public function getImageUrlAttribute(): ?string

@@ -56,7 +56,9 @@ class ItemFeaturedTest extends TestCase
 
     public function test_the_flag_is_cleared_again_from_the_form(): void
     {
-        $item = Item::factory()->featured()->create([
+        $category = $this->tenant->categories()->create(['name' => 'مشروبات']);
+
+        $item = Item::factory()->featured()->hasAttached($category)->create([
             'user_id' => $this->tenant->getKey(),
         ]);
 
@@ -112,9 +114,8 @@ class ItemFeaturedTest extends TestCase
     {
         $category = $this->tenant->categories()->create(['name' => 'مشروبات']);
 
-        return Item::factory()->create([
+        return Item::factory()->hasAttached($category)->create([
             'user_id' => $this->tenant->getKey(),
-            'category_id' => $category->getKey(),
             'title' => $title,
         ]);
     }

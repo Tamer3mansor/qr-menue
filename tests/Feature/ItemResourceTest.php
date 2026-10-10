@@ -58,10 +58,9 @@ class ItemResourceTest extends TestCase
         Filament::setTenant(null);
 
         try {
-            return Item::factory()->create([
+            return Item::factory()->hasAttached($category)->create([
                 ...$attributes,
                 'user_id' => $owner,
-                'category_id' => $category,
             ]);
         } finally {
             Filament::setTenant($this->tenant);
@@ -128,7 +127,7 @@ class ItemResourceTest extends TestCase
 
         Livewire::test(CreateItem::class)
             ->fillForm([
-                'category_id' => $category->getKey(),
+                'categories' => [$category->getKey()],
                 'title' => 'Grilled Kebab',
                 'price' => 149.50,
                 'is_available' => true,
@@ -137,11 +136,39 @@ class ItemResourceTest extends TestCase
             ->call('create')
             ->assertHasNoFormErrors();
 
+        $item = Item::query()->withoutGlobalScopes()->where('title', 'Grilled Kebab')->firstOrFail();
+
         $this->assertDatabaseHas('items', [
             'title' => 'Grilled Kebab',
-            'category_id' => $category->getKey(),
             'user_id' => $this->tenant->id,
         ]);
+
+        $this->assertDatabaseHas('category_item', [
+            'category_id' => $category->getKey(),
+            'item_id' => $item->getKey(),
+        ]);
+    }
+
+    public function test_creating_an_item_can_attach_multiple_categories(): void
+    {
+        $firstCategory = $this->createCategoryFor($this->tenant, ['name' => 'Starters']);
+        $secondCategory = $this->createCategoryFor($this->tenant, ['name' => 'Grill']);
+
+        Livewire::test(CreateItem::class)
+            ->fillForm([
+                'categories' => [$firstCategory->getKey(), $secondCategory->getKey()],
+                'title' => 'Mixed Grill',
+                'price' => 250,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $item = Item::query()->withoutGlobalScopes()->where('title', 'Mixed Grill')->firstOrFail();
+
+        $this->assertEqualsCanonicalizing(
+            [$firstCategory->getKey(), $secondCategory->getKey()],
+            $item->categories()->pluck('categories.id')->all(),
+        );
     }
 
     public function test_the_item_title_is_required(): void
@@ -163,9 +190,9 @@ class ItemResourceTest extends TestCase
     public function test_the_item_category_is_required(): void
     {
         Livewire::test(CreateItem::class)
-            ->fillForm(['category_id' => null])
+            ->fillForm(['categories' => []])
             ->call('create')
-            ->assertHasFormErrors(['category_id' => 'required']);
+            ->assertHasFormErrors(['categories' => 'required']);
     }
 
     public function test_the_description_is_optional(): void
@@ -174,7 +201,7 @@ class ItemResourceTest extends TestCase
 
         Livewire::test(CreateItem::class)
             ->fillForm([
-                'category_id' => $category->getKey(),
+                'categories' => [$category->getKey()],
                 'title' => 'Plain Falafel',
                 'price' => 25,
                 'description' => null,
@@ -196,7 +223,7 @@ class ItemResourceTest extends TestCase
 
         Livewire::test(CreateItem::class)
             ->fillForm([
-                'category_id' => $category->getKey(),
+                'categories' => [$category->getKey()],
                 'title' => 'Shawarma',
                 'price' => 60,
                 'image' => [UploadedFile::fake()->image('shawarma.jpg')],
@@ -217,7 +244,7 @@ class ItemResourceTest extends TestCase
         $item = $this->createItemFor($this->tenant, $category);
 
         Livewire::test(ListItems::class)
-            ->assertTableColumnStateSet('category.name', 'Desserts', $item);
+            ->assertTableColumnStateSet('categories.name', ['Desserts'], $item);
     }
 
     public function test_the_availability_can_be_toggled_from_the_table(): void
@@ -254,7 +281,7 @@ class ItemResourceTest extends TestCase
         $secondItem = $this->createItemFor($this->tenant, $secondCategory);
 
         Livewire::test(ListItems::class)
-            ->filterTable('category', $firstCategory->getKey())
+            ->filterTable('categories', $firstCategory->getKey())
             ->assertCanSeeTableRecords([$firstItem])
             ->assertCanNotSeeTableRecords([$secondItem]);
     }
@@ -356,7 +383,7 @@ class ItemResourceTest extends TestCase
         Livewire::test(ListItems::class)
             ->assertTableColumnExists('image')
             ->assertTableColumnExists('title')
-            ->assertTableColumnExists('category.name')
+            ->assertTableColumnExists('categories.name')
             ->assertTableColumnExists('price')
             ->assertTableColumnExists('is_available')
             ->assertTableColumnExists('sort_order');

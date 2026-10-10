@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Item;
 use App\Models\Offer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,9 +20,6 @@ class OfferFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'item_id' => fn (array $attributes): int => Item::factory()
-                ->create(['user_id' => $attributes['user_id']])
-                ->getKey(),
             'title' => fake()->optional()->sentence(3),
             'offer_price' => fake()->randomFloat(2, 1, 500),
             'is_active' => true,

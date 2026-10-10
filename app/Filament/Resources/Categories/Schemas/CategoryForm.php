@@ -12,9 +12,11 @@ class CategoryForm
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('الاسم')
                     ->required()
                     ->maxLength(255),
                 TextInput::make('sort_order')
+                    ->label('الترتيب')
                     ->integer()
                     ->default(0)
                     ->minValue(0),

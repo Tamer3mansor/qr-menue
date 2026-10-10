@@ -78,8 +78,8 @@ class TenantIsolationTest extends TestCase
         $user = User::factory()->create();
 
         $category = Category::factory()->create(['user_id' => $user]);
-        $item = Item::factory()->create(['user_id' => $user, 'category_id' => $category]);
-        $offer = Offer::factory()->create(['user_id' => $user, 'item_id' => $item]);
+        $item = Item::factory()->hasAttached($category)->create(['user_id' => $user]);
+        $offer = Offer::factory()->hasAttached($item)->create(['user_id' => $user]);
         $setting = Setting::factory()->create(['user_id' => $user]);
         $qrCode = $user->qrCode()->firstOrFail();
 
@@ -89,8 +89,8 @@ class TenantIsolationTest extends TestCase
         $this->assertTrue($setting->user->is($user));
         $this->assertTrue($qrCode->user->is($user));
 
-        $this->assertTrue($item->category->is($category));
-        $this->assertTrue($offer->item->is($item));
+        $this->assertEqualsCanonicalizing([$category->getKey()], $item->categories->pluck('id')->all());
+        $this->assertEqualsCanonicalizing([$item->getKey()], $offer->items->pluck('id')->all());
     }
 
     public function test_the_user_exposes_all_of_their_tenant_records(): void
@@ -99,8 +99,8 @@ class TenantIsolationTest extends TestCase
         $otherUser = User::factory()->create();
 
         $category = Category::factory()->create(['user_id' => $user]);
-        $item = Item::factory()->create(['user_id' => $user, 'category_id' => $category]);
-        $offer = Offer::factory()->create(['user_id' => $user, 'item_id' => $item]);
+        $item = Item::factory()->hasAttached($category)->create(['user_id' => $user]);
+        $offer = Offer::factory()->hasAttached($item)->create(['user_id' => $user]);
         Setting::factory()->create(['user_id' => $user]);
 
         $this->assertCount(1, $user->categories);
@@ -130,8 +130,8 @@ class TenantIsolationTest extends TestCase
         $user = User::factory()->create();
 
         $category = Category::factory()->create(['user_id' => $user]);
-        $item = Item::factory()->create(['user_id' => $user, 'category_id' => $category]);
-        Offer::factory()->create(['user_id' => $user, 'item_id' => $item]);
+        $item = Item::factory()->hasAttached($category)->create(['user_id' => $user]);
+        Offer::factory()->hasAttached($item)->create(['user_id' => $user]);
         Setting::factory()->create(['user_id' => $user]);
 
         $user->delete();
@@ -141,6 +141,8 @@ class TenantIsolationTest extends TestCase
         $this->assertDatabaseCount('offers', 0);
         $this->assertDatabaseCount('settings', 0);
         $this->assertDatabaseCount('qr_codes', 0);
+        $this->assertDatabaseCount('category_item', 0);
+        $this->assertDatabaseCount('offer_item', 0);
     }
 
     public function test_a_user_may_only_have_one_qr_code(): void

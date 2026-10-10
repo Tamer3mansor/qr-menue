@@ -35,9 +35,9 @@ class WebsiteSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 
-    protected static ?string $navigationLabel = 'Website Settings';
+    protected static ?string $navigationLabel = 'إعدادات الموقع';
 
-    protected static ?string $title = 'Website Settings';
+    protected static ?string $title = 'إعدادات الموقع';
 
     /**
      * Navigation items fall back to a sort of -1, so this sits below
@@ -121,20 +121,20 @@ class WebsiteSettings extends Page
 
     protected function heroTab(): Tab
     {
-        return Tab::make('Hero Section')
+        return Tab::make('الواجهة الرئيسية')
             ->icon(Heroicon::OutlinedPhoto)
             ->schema([
                 Section::make()
                     ->schema([
                         TextInput::make('hero_title')
-                            ->label('Hero title')
+                            ->label('عنوان الواجهة')
                             ->maxLength(255),
                         Textarea::make('hero_subtitle')
-                            ->label('Hero subtitle')
+                            ->label('عنوان فرعي')
                             ->rows(3)
                             ->maxLength(65535),
                         FileUpload::make('hero_image')
-                            ->label('Hero image')
+                            ->label('صورة الواجهة')
                             ->image()
                             ->disk('public')
                             ->directory('hero')
@@ -147,7 +147,7 @@ class WebsiteSettings extends Page
 
     protected function offersTickerTab(): Tab
     {
-        return Tab::make('Offers Ticker')
+        return Tab::make('شريط العروض')
             ->icon(Heroicon::OutlinedTag)
             ->schema([
                 Section::make()
@@ -163,31 +163,31 @@ class WebsiteSettings extends Page
 
     protected function branchesTab(): Tab
     {
-        return Tab::make('Branches')
+        return Tab::make('الفروع')
             ->icon(Heroicon::OutlinedBuildingStorefront)
             ->schema([
                 Section::make()
                     ->schema([
                         Repeater::make('branches')
-                            ->label('Branches')
+                            ->label('الفروع')
                             ->schema([
                                 TextInput::make('branch_name')
-                                    ->label('Branch name')
+                                    ->label('اسم الفرع')
                                     ->required()
                                     ->maxLength(255),
                                 TextInput::make('address')
-                                    ->label('Address')
+                                    ->label('العنوان')
                                     ->required()
                                     ->maxLength(255),
                                 TextInput::make('phone')
-                                    ->label('Phone')
+                                    ->label('الهاتف')
                                     ->tel()
                                     ->maxLength(255),
                             ])
                             ->columns(3)
                             ->itemLabel(fn (array $state): ?string => $state['branch_name'] ?? null)
                             ->defaultItems(0)
-                            ->addActionLabel('Add branch')
+                            ->addActionLabel('إضافة فرع')
                             ->reorderable(),
                     ])
                     ->columns(1),
@@ -196,25 +196,21 @@ class WebsiteSettings extends Page
 
     protected function socialMediaTab(): Tab
     {
-        return Tab::make('Social Media')
+        return Tab::make('التواصل الاجتماعي')
             ->icon(Heroicon::OutlinedShare)
             ->schema([
                 Section::make()
                     ->schema([
                         TextInput::make('social_links.facebook')
-                            ->label('Facebook')
+                            ->label('فيسبوك')
                             ->url()
                             ->maxLength(255),
                         TextInput::make('social_links.instagram')
-                            ->label('Instagram')
+                            ->label('إنستجرام')
                             ->url()
                             ->maxLength(255),
-                        TextInput::make('social_links.whatsapp')
-                            ->label('WhatsApp')
-                            ->tel()
-                            ->maxLength(255),
                         TextInput::make('social_links.tiktok')
-                            ->label('TikTok')
+                            ->label('تيك توك')
                             ->url()
                             ->maxLength(255),
                     ])
@@ -224,22 +220,22 @@ class WebsiteSettings extends Page
 
     protected function seoTab(): Tab
     {
-        return Tab::make('SEO')
+        return Tab::make('السيو')
             ->icon(Heroicon::OutlinedMagnifyingGlass)
             ->schema([
                 Section::make()
                     ->schema([
                         TextInput::make('seo_title')
-                            ->label('SEO title')
+                            ->label('عنوان السيو')
                             ->hint('عنوان الصفحة في جوجل')
                             ->maxLength(self::SEO_TITLE_LIMIT),
                         Textarea::make('seo_description')
-                            ->label('SEO description')
+                            ->label('وصف السيو')
                             ->hint('الوصف الظاهر في نتائج البحث')
                             ->rows(3)
                             ->maxLength(self::SEO_DESCRIPTION_LIMIT),
                         TextInput::make('seo_keywords')
-                            ->label('SEO keywords')
+                            ->label('كلمات السيو')
                             ->hint('كلمات مفتاحية مفصولة بفواصل')
                             ->maxLength(255),
                     ])
@@ -249,19 +245,19 @@ class WebsiteSettings extends Page
 
     protected function appearanceTab(): Tab
     {
-        return Tab::make('Colors & Font')
+        return Tab::make('الألوان والخط')
             ->icon(Heroicon::OutlinedSwatch)
             ->schema([
                 Section::make()
                     ->schema([
                         ColorPicker::make('primary_color')
-                            ->label('Primary color')
+                            ->label('اللون الأساسي')
                             ->hex(),
                         ColorPicker::make('secondary_color')
-                            ->label('Secondary color')
+                            ->label('اللون الثانوي')
                             ->hex(),
                         Select::make('primary_font')
-                            ->label('Font')
+                            ->label('الخط')
                             ->options(self::fontOptions())
                             ->default('Cairo')
                             ->native(false),
@@ -275,7 +271,7 @@ class WebsiteSettings extends Page
         $this->setting()->update($this->form->getState());
 
         Notification::make()
-            ->title('Website settings saved.')
+            ->title('تم حفظ إعدادات الموقع.')
             ->success()
             ->send();
     }
@@ -283,7 +279,7 @@ class WebsiteSettings extends Page
     protected function getSaveAction(): Action
     {
         return Action::make('save')
-            ->label('Save')
+            ->label('حفظ')
             ->submit('save');
     }
 

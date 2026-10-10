@@ -18,22 +18,23 @@ class OffersTable
         return $table
             ->columns([
                 TextColumn::make('title')
-                    ->label('Title')
+                    ->label('العنوان')
                     ->placeholder('—')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('item.title')
-                    ->label('Item')
-                    ->description(fn (Offer $record): string => $record->item === null
+                TextColumn::make('items.title')
+                    ->label('المنتجات')
+                    ->description(fn (Offer $record): string => $record->items->isEmpty()
                         ? '—'
-                        : 'Original price: '.Setting::currencyFor($record->user).' '.$record->item->price)
+                        : 'السعر الأصلي: '.Setting::currencyFor($record->user).' '.$record->items->min('price'))
                     ->searchable(),
                 TextColumn::make('offer_price')
+                    ->label('سعر العرض')
                     ->numeric()
                     ->suffix(fn (Offer $record): string => ' '.Setting::currencyFor($record->user))
                     ->sortable(),
                 TextColumn::make('discount')
-                    ->label('Discount')
+                    ->label('الخصم')
                     ->state(fn (Offer $record): ?int => $record->discountPercentage())
                     ->formatStateUsing(fn (?int $state): string => match (true) {
                         $state === null, $state <= 0 => '—',
@@ -44,16 +45,17 @@ class OffersTable
                         $state === null, $state <= 0 => 'gray',
                         default => 'success',
                     }),
-                ToggleColumn::make('is_active'),
+                ToggleColumn::make('is_active')
+                    ->label('مفعل'),
                 TextColumn::make('expires_at')
-                    ->label('Expires at')
+                    ->label('ينتهي في')
                     ->dateTime()
-                    ->placeholder('Never')
+                    ->placeholder('بدون')
                     ->sortable(),
             ])
             ->filters([
                 TernaryFilter::make('is_active')
-                    ->label('Is active')
+                    ->label('مفعل')
                     ->queries(
                         true: fn ($query) => $query->currentlyActive(),
                         false: fn ($query) => $query->currentlyInactive(),

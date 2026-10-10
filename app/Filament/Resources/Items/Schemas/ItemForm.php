@@ -17,18 +17,23 @@ class ItemForm
     {
         return $schema
             ->components([
-                Select::make('category_id')
-                    ->relationship('category', 'name')
+                Select::make('categories')
+                    ->label('التصنيفات')
+                    ->relationship('categories', 'name')
+                    ->multiple()
                     ->searchable()
                     ->preload()
                     ->required(),
                 TextInput::make('title')
+                    ->label('اسم المنتج')
                     ->required()
                     ->maxLength(255),
                 Textarea::make('description')
+                    ->label('الوصف')
                     ->rows(3)
                     ->columnSpanFull(),
                 TextInput::make('price')
+                    ->label('السعر')
                     ->required()
                     ->numeric()
                     ->minValue(0)
@@ -36,18 +41,21 @@ class ItemForm
                     ->step(0.01)
                     ->suffix(fn (): string => ' '.Setting::currencyFor(Filament::getTenant())),
                 FileUpload::make('image')
+                    ->label('الصورة')
                     ->image()
                     ->imageEditor()
                     ->disk('public')
                     ->directory('items')
                     ->maxSize(2048),
                 Toggle::make('is_available')
+                    ->label('متاح')
                     ->default(true),
                 Toggle::make('is_featured')
-                    ->label('Featured')
-                    ->helperText('Featured items can be highlighted on the public menu.')
+                    ->label('مميز')
+                    ->helperText('المنتجات المميزة ممكن تظهر بشكل بارز في القائمة العامة.')
                     ->default(false),
                 TextInput::make('sort_order')
+                    ->label('الترتيب')
                     ->integer()
                     ->default(0)
                     ->minValue(0),

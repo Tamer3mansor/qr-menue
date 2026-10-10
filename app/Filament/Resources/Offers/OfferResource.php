@@ -21,12 +21,16 @@ class OfferResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
+    protected static ?string $modelLabel = 'العرض';
+
+    protected static ?string $pluralModelLabel = 'العروض';
+
     protected static ?string $recordTitleAttribute = 'title';
 
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['item', 'user.settings']);
+            ->with(['items', 'user.settings']);
     }
 
     public static function form(Schema $schema): Schema

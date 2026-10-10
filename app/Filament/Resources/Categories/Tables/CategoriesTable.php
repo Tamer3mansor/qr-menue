@@ -14,17 +14,20 @@ class CategoriesTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('الاسم')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('sort_order')
+                    ->label('الترتيب')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('items_count')
-                    ->label('Items')
+                    ->label('المنتجات')
                     ->counts('items')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('created_at')
+                    ->label('تاريخ الإنشاء')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

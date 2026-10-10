@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Offer;
 use App\Models\Setting;
 use App\Traits\ResolvesTenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * The public website a tenant serves under /site/{slug}.
@@ -31,15 +32,26 @@ class WebsiteController extends Controller
 
         $offers = $tenant->offers()
             ->currentlyActive()
-            ->whereHas('item', fn (Builder $query) => $query->where('is_available', true))
-            ->with('item')
+            ->whereHas('items', fn (Builder $query) => $query->where('is_available', true))
+            ->with(['items' => fn (BelongsToMany $items) => $items
+                ->where('is_available', true)
+                ->orderBy('sort_order')
+                ->orderBy('id')])
             ->orderBy('id')
             ->get();
 
-        $offersByItem = $offers->keyBy('item_id');
+        // A single-item offer styles the item's own card in the grid; anything
+        // bigger is a combo that gets its own section instead.
+        $offersByItem = $offers
+            ->filter(fn (Offer $offer): bool => $offer->items->count() === 1)
+            ->mapWithKeys(fn (Offer $offer): array => [$offer->items->first()->getKey() => $offer]);
+
+        $comboOffers = $offers
+            ->filter(fn (Offer $offer): bool => $offer->items->count() > 1)
+            ->values();
 
         $categories = $tenant->categories()
-            ->with(['items' => fn (HasMany $items) => $items
+            ->with(['items' => fn (BelongsToMany $items) => $items
                 ->where('is_available', true)
                 ->orderBy('sort_order')
                 ->orderBy('id')])
@@ -53,7 +65,7 @@ class WebsiteController extends Controller
         $featured = $tenant->items()
             ->where('is_featured', true)
             ->where('is_available', true)
-            ->with('category')
+            ->with('categories')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -65,6 +77,7 @@ class WebsiteController extends Controller
             'featured' => $featured,
             'offers' => $offers,
             'offersByItem' => $offersByItem,
+            'comboOffers' => $comboOffers,
             'branches' => $settings?->branchesList() ?? [],
             'socialLinks' => $settings?->filledSocialLinks() ?? [],
             'showOffersTicker' => (bool) $settings?->show_offers_ticker,
