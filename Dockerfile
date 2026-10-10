@@ -2,7 +2,7 @@ FROM serversideup/php:8.3-fpm-nginx
 
 USER root
 
-RUN install-php-extensions pdo_mysql mysqli
+RUN install-php-extensions pdo_mysql mysqli intl gd
 
 WORKDIR /var/www/html
 
