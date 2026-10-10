@@ -25,6 +25,7 @@ RUN mkdir -p \
 ENV AUTORUN_ENABLED=true \
     AUTORUN_LARAVEL_MIGRATION=true \
     AUTORUN_LARAVEL_MIGRATION_FORCE=true \
+    AUTORUN_LARAVEL_MIGRATION_SEED=true \
     AUTORUN_LARAVEL_STORAGE_LINK=true \
     AUTORUN_LARAVEL_ROUTE_CACHE=true \
     AUTORUN_LARAVEL_VIEW_CACHE=true \
@@ -33,8 +34,6 @@ ENV AUTORUN_ENABLED=true \
     AUTORUN_LARAVEL_OPTIMIZE=false \
     PHP_OPCACHE_ENABLE=1 \
     SSL_MODE=off
-
-COPY --chmod=755 scripts/99-app-init.sh /etc/entrypoint.d/99-app-init.sh
 
 USER www-data
 
