@@ -39,7 +39,7 @@ return [
     |
     */
 
-    'price' => env('LANDING_PRICE', '1500'),
+    'price' => env('LANDING_PRICE', '2000'),
 
     'currency' => env('LANDING_CURRENCY', 'جنيه'),
 
