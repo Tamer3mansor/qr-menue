@@ -139,11 +139,11 @@ class RestaurantDemoSeeder extends Seeder
 
     public function run(TenantProvisioner $provisioner): void
     {
-        if (app()->environment('production')) {
-            $this->command?->warn('Restaurant demo tenant skipped: this environment is production.');
+        // if (app()->environment('production')) {
+        //     $this->command?->warn('Restaurant demo tenant skipped: this environment is production.');
 
-            return;
-        }
+        //     return;
+        // }
 
         $tenant = $this->createTenant();
 

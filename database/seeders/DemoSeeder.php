@@ -70,11 +70,11 @@ class DemoSeeder extends Seeder
 
     public function run(TenantProvisioner $provisioner): void
     {
-        if (app()->environment('production')) {
-            $this->command?->warn('Demo tenant skipped: this environment is production.');
+        // if (app()->environment('production')) {
+        //     $this->command?->warn('Demo tenant skipped: this environment is production.');
 
-            return;
-        }
+        //     return;
+        // }
 
         $tenant = $this->createTenant();
 
