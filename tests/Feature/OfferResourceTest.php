@@ -267,7 +267,7 @@ class OfferResourceTest extends TestCase
         );
     }
 
-    public function test_the_offer_price_must_be_lower_than_every_selected_item_price(): void
+    public function test_the_offer_price_must_be_lower_than_the_total_of_the_selected_items(): void
     {
         $cheapItem = $this->createItemFor($this->tenant, ['price' => 100]);
         $priceyItem = $this->createItemFor($this->tenant, ['price' => 300]);
@@ -275,12 +275,33 @@ class OfferResourceTest extends TestCase
         Livewire::test(CreateOffer::class)
             ->fillForm([
                 'items' => [$cheapItem->getKey(), $priceyItem->getKey()],
-                'offer_price' => 150,
+                'offer_price' => 400,
             ])
             ->call('create')
             ->assertHasFormErrors(['offer_price']);
 
         $this->assertDatabaseCount('offers', 0);
+    }
+
+    public function test_a_combo_offer_price_below_the_total_is_accepted(): void
+    {
+        $cheapItem = $this->createItemFor($this->tenant, ['price' => 100]);
+        $priceyItem = $this->createItemFor($this->tenant, ['price' => 300]);
+
+        Livewire::test(CreateOffer::class)
+            ->fillForm([
+                'items' => [$cheapItem->getKey(), $priceyItem->getKey()],
+                'title' => 'كومبو الشيش',
+                'offer_price' => 250,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $offer = Offer::query()->withoutGlobalScopes()->sole();
+
+        $this->assertSame(250.0, (float) $offer->offer_price);
+        $this->assertSame(400.0, $offer->totalItemsPrice());
+        $this->assertSame(38, $offer->discountPercentage());
     }
 
     public function test_the_offer_title_is_optional(): void
@@ -320,6 +341,21 @@ class OfferResourceTest extends TestCase
         Livewire::test(CreateOffer::class)
             ->fillForm(['items' => [$item->getKey()]])
             ->assertSee('السعر الأصلي: ج.م 250.75');
+    }
+
+    public function test_the_item_select_hint_shows_the_total_of_the_selected_items(): void
+    {
+        Setting::factory()->create([
+            'user_id' => $this->tenant,
+            'currency' => 'ج.م',
+        ]);
+
+        $cheapItem = $this->createItemFor($this->tenant, ['price' => 100]);
+        $priceyItem = $this->createItemFor($this->tenant, ['price' => 300.25]);
+
+        Livewire::test(CreateOffer::class)
+            ->fillForm(['items' => [$cheapItem->getKey(), $priceyItem->getKey()]])
+            ->assertSee('السعر الأصلي: ج.م 400.25');
     }
 
     public function test_the_discount_percentage_is_calculated_from_the_item_price(): void
@@ -374,6 +410,23 @@ class OfferResourceTest extends TestCase
         Livewire::test(ListOffers::class)
             ->assertTableColumnStateSet('items.title', ['Kebab'], $offer)
             ->assertSee('السعر الأصلي: ج.م 300.25');
+    }
+
+    public function test_the_table_shows_the_total_original_price_for_a_combo(): void
+    {
+        Setting::factory()->create([
+            'user_id' => $this->tenant,
+            'currency' => 'ج.م',
+        ]);
+
+        $first = $this->createItemFor($this->tenant, ['price' => 200, 'title' => 'Kebab']);
+        $second = $this->createItemFor($this->tenant, ['price' => 100, 'title' => 'Shawarma']);
+
+        $offer = $this->createOfferFor($this->tenant, $first, ['offer_price' => 210]);
+        $offer->items()->attach($second->getKey());
+
+        Livewire::test(ListOffers::class)
+            ->assertSee('السعر الأصلي: ج.م 300.00');
     }
 
     public function test_the_list_can_be_filtered_by_active_offers(): void

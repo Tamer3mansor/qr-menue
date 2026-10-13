@@ -26,7 +26,7 @@ class OffersTable
                     ->label('المنتجات')
                     ->description(fn (Offer $record): string => $record->items->isEmpty()
                         ? '—'
-                        : 'السعر الأصلي: '.Setting::currencyFor($record->user).' '.$record->items->min('price'))
+                        : 'السعر الأصلي: '.Setting::currencyFor($record->user).' '.number_format((float) $record->items->sum('price'), 2))
                     ->searchable(),
                 TextColumn::make('offer_price')
                     ->label('سعر العرض')

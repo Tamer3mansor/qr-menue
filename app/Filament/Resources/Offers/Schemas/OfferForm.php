@@ -54,10 +54,10 @@ class OfferForm
                                 return;
                             }
 
-                            $lowestPrice = self::lowestSelectedPrice($get('items'));
+                            $total = self::totalSelectedPrice($get('items'));
 
-                            if ($lowestPrice !== null && (float) $value >= (float) $lowestPrice) {
-                                $fail('سعر العرض لازم يكون أقل من سعر أي منتج مختار.');
+                            if ($total !== null && (float) $value >= (float) $total) {
+                                $fail('سعر العرض لازم يكون أقل من مجموع أسعار المنتجات المختارة.');
                             }
                         };
                     }),
@@ -76,22 +76,22 @@ class OfferForm
      */
     protected static function originalPriceHint(mixed $itemIds): ?string
     {
-        $lowestPrice = self::lowestSelectedPrice($itemIds);
+        $total = self::totalSelectedPrice($itemIds);
 
-        if ($lowestPrice === null) {
+        if ($total === null) {
             return null;
         }
 
-        return 'السعر الأصلي: '.Setting::currencyFor(Filament::getTenant()).' '.$lowestPrice;
+        return 'السعر الأصلي: '.Setting::currencyFor(Filament::getTenant()).' '.number_format((float) $total, 2);
     }
 
     /**
-     * The offer price has to beat every attached item, so only the cheapest one
-     * matters when validating or hinting.
+     * The offer is measured against everything it contains, so the "original"
+     * price is the combined price of every selected item.
      *
      * @param  array<int, int|string>|int|string|null  $itemIds
      */
-    protected static function lowestSelectedPrice(mixed $itemIds): float|string|null
+    protected static function totalSelectedPrice(mixed $itemIds): ?float
     {
         $itemIds = collect($itemIds ?? [])->filter()->all();
 
@@ -99,6 +99,6 @@ class OfferForm
             return null;
         }
 
-        return Item::query()->whereIn('id', $itemIds)->min('price');
+        return (float) Item::query()->whereIn('id', $itemIds)->sum('price');
     }
 }
