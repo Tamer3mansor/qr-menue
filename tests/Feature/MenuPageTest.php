@@ -506,4 +506,15 @@ class MenuPageTest extends TestCase
             ->assertOk()
             ->assertSee('لا توجد أصناف متاحة حالياً.');
     }
+
+    public function test_item_images_are_lazy_loaded(): void
+    {
+        $category = $this->category();
+        $this->item($category, ['title' => 'LazyKebab', 'image' => 'items/kebab.jpg']);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertSee('/storage/items/kebab.jpg', false)
+            ->assertSee('alt="LazyKebab" loading="lazy"', false);
+    }
 }

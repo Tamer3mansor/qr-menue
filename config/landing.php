@@ -8,13 +8,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | The number the landing page points its subscribe buttons at, in
-    | international format without the leading plus, for example 201001234567.
+    | international format without the leading plus, for example 201013699131.
     | It carries a placeholder default so a misconfigured environment produces
     | an obviously dead link rather than a silent one.
     |
     */
 
-    'whatsapp_number' => env('WHATSAPP_NUMBER', '201001234567'),
+    'whatsapp_number' => env('WHATSAPP_NUMBER', '201013699131'),
 
     /*
     |--------------------------------------------------------------------------
@@ -26,7 +26,7 @@ return [
     |
     */
 
-    'whatsapp_subscribe_url' => 'https://wa.me/'.ltrim((string) env('WHATSAPP_NUMBER', '201001234567'), '+'),
+    'whatsapp_subscribe_url' => 'https://wa.me/'.ltrim((string) env('WHATSAPP_NUMBER', '201013699131'), '+'),
 
     /*
     |--------------------------------------------------------------------------

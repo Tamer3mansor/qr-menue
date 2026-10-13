@@ -49,6 +49,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family={{ urlencode($font) }}:wght@400;600;700;800&display=swap" rel="stylesheet">
 
+    <script>document.documentElement.classList.add('js');</script>
+
     <style>
         :root {
             --primary: {{ $primary }};
@@ -114,8 +116,14 @@
         /* Header */
         .site-header {
             position: sticky; top: 0; z-index: 20;
-            background: rgb(255 255 255 / .95); backdrop-filter: blur(8px);
-            border-bottom: 1px solid var(--border);
+            background: transparent;
+            border-bottom: 1px solid transparent;
+            transition: all .3s ease;
+        }
+        .site-header.is-scrolled {
+            background: #fff;
+            box-shadow: 0 2px 20px rgb(0 0 0 / .08);
+            border-bottom-color: var(--border);
         }
         .site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 64px; }
 
@@ -138,9 +146,12 @@
             color: #fff; text-align: center; isolation: isolate;
         }
         /* The overlay is what keeps the text readable on a light photo. */
-        .hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgb(0 0 0 / .55); }
-        .hero__title { margin: 0 0 12px; font-size: clamp(1.75rem, 7vw, 3rem); line-height: 1.15; }
-        .hero__subtitle { max-width: 36rem; margin: 0 auto 26px; font-size: 1.0625rem; opacity: .92; }
+        .hero::before {
+            content: ''; position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(to bottom, rgb(0 0 0 / .3) 0%, rgb(0 0 0 / .6) 100%);
+        }
+        .hero__title { margin: 0 0 12px; font-size: clamp(1.75rem, 7vw, 3rem); line-height: 1.15; text-shadow: 0 2px 8px rgb(0 0 0 / .5); }
+        .hero__subtitle { max-width: 36rem; margin: 0 auto 26px; font-size: 1.0625rem; opacity: .92; text-shadow: 0 2px 8px rgb(0 0 0 / .5); }
         .hero__actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 
         /* Grids */
@@ -159,19 +170,43 @@
             color: var(--muted); font-size: 2rem;
         }
         .card__body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
-        .card__title { margin: 0; font-size: 1.0625rem; }
-        .card__desc { margin: 0; color: var(--muted); font-size: .875rem; }
+        .card__title { margin: 0; font-size: .9375rem; font-weight: 700; }
+        .card__desc { margin: 0; color: var(--muted); font-size: .8125rem; }
         .card__foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
-        .price { font-weight: 800; color: var(--primary); }
-        .price--old { color: var(--muted); font-weight: 500; text-decoration: line-through; font-size: .875rem; }
+        .price { font-weight: 800; color: var(--primary); font-size: .875rem; }
+        .price--old { color: var(--muted); font-weight: 500; text-decoration: line-through; font-size: .8125rem; }
+
+        /* Featured cards (Instagram style) */
+        .card--featured { max-height: none; }
+        .card--featured .card__media { height: auto; aspect-ratio: 4 / 3; }
+        .card--featured .card__media img { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .card__overlay {
+            position: absolute; inset-inline: 0; bottom: 0;
+            padding: 12px; color: #fff;
+            background: linear-gradient(to top, rgb(0 0 0 / .75), transparent);
+        }
+        .card__overlay-title { margin: 0; font-size: 1rem; font-weight: 700; }
+        .card__overlay-price { margin: 2px 0 0; font-size: .875rem; font-weight: 700; }
+
+        /* Scroll reveal */
+        .js [data-reveal] {
+            opacity: 0; transform: translateY(20px);
+            transition: opacity .4s ease-out, transform .4s ease-out;
+        }
+        .js [data-reveal].is-visible { opacity: 1; transform: none; }
+
+        @media (min-width: 480px) {
+            .card__title { font-size: 1.0625rem; }
+            .card__desc { font-size: .875rem; }
+        }
 
         .badge {
             position: absolute; top: 10px; inset-inline-start: 10px; z-index: 1;
             padding: 4px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; color: #fff;
         }
         .badge--offer { background: #d92d20; }
-        .badge--featured { background: #f79009; }
+        .badge--featured { background: var(--primary); }
         .badge--discount {
             position: static; display: inline-block; background: var(--secondary); color: #0b3d2c;
         }
@@ -219,12 +254,19 @@
 
         /* Filters */
         .filters { display: grid; gap: 14px; margin-bottom: 24px; }
-        .filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+        .filter-row {
+            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+            white-space: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        .filter-row::-webkit-scrollbar { display: none; }
 
         .chip {
-            flex: none; padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+            flex: none; display: inline-flex; align-items: center; justify-content: center;
+            min-height: 44px; min-width: 44px;
+            padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
             background: var(--card-bg); font: inherit; font-size: .875rem; font-weight: 600;
             color: var(--muted); cursor: pointer; white-space: nowrap;
+            transition: all .2s ease;
         }
         .chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
 
@@ -252,7 +294,7 @@
         .site-footer__brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; font-weight: 800; }
         .site-footer__social { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         .social-link {
-            display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+            display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
             background: rgb(255 255 255 / .1); font-size: 1.125rem;
         }
         .site-footer__meta { display: flex; flex-direction: column; gap: 6px; font-size: .875rem; }
@@ -273,8 +315,11 @@
 
         @media (prefers-reduced-motion: reduce) {
             html { scroll-behavior: auto; }
-            .ticker__track { animation: none; }
-            .btn, .btn:hover { transition: none; transform: none; }
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
+            .btn:hover { transform: none; }
         }
     </style>
 </head>
@@ -299,7 +344,7 @@
         <div class="container site-header__inner">
             <a class="brand" href="#home">
                 @if (filled($logoUrl))
-                    <img class="brand__logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}">
+                    <img class="brand__logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}" loading="lazy">
                 @else
                     <span class="brand__placeholder" aria-hidden="true">{{ \Illuminate\Support\Str::of($restaurantName)->substr(0, 2) }}</span>
                 @endif
@@ -314,9 +359,6 @@
                 @endif
                 @if ($hasBranches)
                     <a class="site-nav__link" href="#branches">فروعنا</a>
-                @endif
-                @if (filled($phone))
-                    <a class="site-nav__link" href="tel:{{ $phone }}">اتصل بنا</a>
                 @endif
             </nav>
 
@@ -338,7 +380,7 @@
                 @endif
 
                 <div class="hero__actions">
-                    <a class="btn btn--light" href="{{ filled($phone) ? 'https://wa.me/'.$phone : $menuUrl }}">اطلب الآن</a>
+                    <a class="btn btn--primary hero__cta" href="{{ filled($phone) ? 'https://wa.me/'.$phone : $menuUrl }}">اطلب الآن</a>
                 </div>
             </div>
         </section>
@@ -347,31 +389,29 @@
             <section class="section section--alt" id="featured">
                 <div class="container">
                     <h2 class="section-title">أبرز منتجاتنا</h2>
-                    <p class="section-lead">أبرز ما نقدمه.</p>
 
-                    <div class="grid">
+                    <div class="grid" data-reveal-group data-reveal-stagger="100">
                         @foreach ($featured as $item)
                             @php
                                 $offer = $offersByItem->get($item->getKey());
                             @endphp
-                            <article class="card">
+                            <article class="card card--featured" data-reveal>
                                 <div class="card__media">
                                     @if (filled($item->image_url))
-                                        <img src="{{ $item->image_url }}" alt="{{ $item->title }}">
+                                        <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
                                     @else
                                         <div class="card__placeholder" aria-hidden="true">🍽️</div>
                                     @endif
                                     <span class="badge badge--featured">مميز</span>
-                                </div>
-                                <div class="card__body">
-                                    <h3 class="card__title">{{ $item->title }}</h3>
-                                    <div class="card__foot">
-                                        @if ($offer)
-                                            <span class="price">{{ number_format((float) $offer->offer_price, 2) }} {{ $currency }}</span>
-                                            <span class="price--old">{{ number_format((float) $item->price, 2) }} {{ $currency }}</span>
-                                        @else
-                                            <span class="price">{{ number_format((float) $item->price, 2) }} {{ $currency }}</span>
-                                        @endif
+                                    <div class="card__overlay">
+                                        <h3 class="card__overlay-title">{{ $item->title }}</h3>
+                                        <p class="card__overlay-price">
+                                            @if ($offer)
+                                                {{ number_format((float) $offer->offer_price, 2) }} {{ $currency }}
+                                            @else
+                                                {{ number_format((float) $item->price, 2) }} {{ $currency }}
+                                            @endif
+                                        </p>
                                     </div>
                                 </div>
                             </article>
@@ -424,7 +464,7 @@
                                     data-price="{{ (float) $item->price }}">
                                     <div class="card__media">
                                         @if (filled($item->image_url))
-                                            <img src="{{ $item->image_url }}" alt="{{ $item->title }}">
+                                            <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
                                         @else
                                             <div class="card__placeholder" aria-hidden="true">🍽️</div>
                                         @endif
@@ -469,17 +509,17 @@
                     <h2 class="section-title">عروض خاصة</h2>
                     <p class="section-lead">كومبوهات بأفضل سعر.</p>
 
-                    <div class="grid">
+                    <div class="grid" data-reveal-group data-reveal-stagger="80">
                         @foreach ($comboOffers as $offer)
-                            <article class="card">
+                            <article class="card" data-reveal>
                                 <div class="card__media">
                                     @if ($offer->image_url)
-                                        <img src="{{ $offer->image_url }}" alt="{{ $offer->title ?: 'كومبو خاص' }}">
+                                        <img src="{{ $offer->image_url }}" alt="{{ $offer->title ?: 'كومبو خاص' }}" loading="lazy">
                                     @elseif ($offer->items->contains(fn ($item): bool => filled($item->image_url)))
                                         <div class="combo-thumbs">
                                             @foreach ($offer->items as $item)
                                                 @if ($item->image_url)
-                                                    <img src="{{ $item->image_url }}" alt="{{ $item->title }}">
+                                                    <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
                                                 @else
                                                     <div class="combo-thumb-placeholder">🍽️</div>
                                                 @endif
@@ -522,9 +562,9 @@
                     <h2 class="section-title">فروعنا</h2>
                     <p class="section-lead">العناوين وأرقام التواصل.</p>
 
-                    <div class="grid">
+                    <div class="grid" data-reveal-group data-reveal-stagger="120">
                         @foreach ($branches as $branch)
-                            <article class="card">
+                            <article class="card" data-reveal>
                                 <div class="card__body">
                                     <h3 class="branch__name">{{ $branch['branch_name'] ?? '' }}</h3>
                                     @if (filled($branch['address'] ?? null))
@@ -546,7 +586,7 @@
         <div class="container site-footer__inner">
             <div class="site-footer__brand">
                 @if (filled($logoUrl))
-                    <img class="brand__logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}">
+                    <img class="brand__logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}" loading="lazy">
                 @endif
                 <span>{{ $restaurantName }}</span>
             </div>
@@ -656,6 +696,53 @@
                     priceOutput.textContent = maxPrice.toFixed(2);
                     apply();
                 });
+            }
+
+            // The header gains a solid background once the page scrolls past
+            // the hero, and returns to transparent back at the top.
+            var header = document.querySelector('.site-header');
+
+            if (header) {
+                var syncHeader = function () {
+                    header.classList.toggle('is-scrolled', window.scrollY > 80);
+                };
+
+                syncHeader();
+                window.addEventListener('scroll', syncHeader, { passive: true });
+            }
+
+            // Reveal each group once as it scrolls into view, staggered per card.
+            var revealGroups = Array.prototype.slice.call(document.querySelectorAll('[data-reveal-group]'));
+            var revealAll = function () {
+                document.querySelectorAll('[data-reveal]').forEach(function (element) {
+                    element.classList.add('is-visible');
+                });
+            };
+
+            if ('IntersectionObserver' in window) {
+                revealGroups.forEach(function (group) {
+                    var step = parseInt(group.getAttribute('data-reveal-stagger') || '0', 10);
+                    var children = Array.prototype.slice.call(group.querySelectorAll('[data-reveal]'));
+
+                    var observer = new IntersectionObserver(function (entries) {
+                        entries.forEach(function (entry) {
+                            if (!entry.isIntersecting) {
+                                return;
+                            }
+
+                            children.forEach(function (child, index) {
+                                child.style.transitionDelay = (index * step) + 'ms';
+                                child.classList.add('is-visible');
+                            });
+
+                            observer.unobserve(group);
+                        });
+                    }, { threshold: 0.1 });
+
+                    observer.observe(group);
+                });
+            } else {
+                revealAll();
             }
 
             // Anchor links scroll natively; this keeps the sticky header from

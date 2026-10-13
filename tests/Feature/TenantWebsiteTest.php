@@ -504,6 +504,57 @@ class TenantWebsiteTest extends TestCase
         $response->assertDontSee('href="#branches"', false);
     }
 
+    public function test_images_are_lazy_loaded(): void
+    {
+        $tenant = $this->tenant();
+
+        $this->availableItem($tenant, ['title' => 'صورة كسولة', 'image' => 'items/lazy.jpg']);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('/storage/items/lazy.jpg', false)
+            ->assertSee('loading="lazy"', false);
+    }
+
+    public function test_the_contact_link_is_not_in_the_navbar(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['phone' => '201122334455']);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertDontSee('اتصل بنا');
+    }
+
+    public function test_the_hero_order_button_uses_the_primary_color(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('btn btn--primary hero__cta', false)
+            ->assertSee('.btn--primary { background: var(--primary); color: #fff; }', false);
+    }
+
+    public function test_the_ticker_pauses_on_hover(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('.ticker:hover .ticker__track { animation-play-state: paused; }', false);
+    }
+
+    public function test_the_featured_badge_uses_the_primary_color(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('.badge--featured { background: var(--primary); }', false);
+    }
+
     private function tenant(array $attributes = []): User
     {
         $tenant = User::factory()->create(['domain' => 'demo'] + $attributes);

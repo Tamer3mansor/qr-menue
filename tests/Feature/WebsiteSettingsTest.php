@@ -89,7 +89,7 @@ class WebsiteSettingsTest extends TestCase
             'social_links' => [
                 'facebook' => 'https://facebook.com/layali',
                 'instagram' => 'https://instagram.com/layali',
-                'whatsapp' => 'https://wa.me/201001234567',
+                'whatsapp' => 'https://wa.me/201013699131',
             ],
         ]);
 
@@ -97,7 +97,7 @@ class WebsiteSettingsTest extends TestCase
 
         $this->assertIsArray($links);
         $this->assertSame('https://facebook.com/layali', $links['facebook']);
-        $this->assertSame('https://wa.me/201001234567', $links['whatsapp']);
+        $this->assertSame('https://wa.me/201013699131', $links['whatsapp']);
         $this->assertCount(3, $setting->filledSocialLinks());
     }
 
