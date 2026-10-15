@@ -193,6 +193,21 @@
             background: var(--brand-tint);
         }
 
+        .item-fallback-logo {
+            object-fit: contain;
+            padding: 12px;
+            background: #f8f8f8;
+        }
+
+        .item-no-image {
+            display: grid;
+            place-items: center;
+            background: var(--brand-primary);
+            color: #fff;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
         .card-body {
             flex: 1 1 auto;
             min-width: 0;
@@ -407,6 +422,10 @@
                 <article class="card" data-categories="{{ $item->categories->pluck('id')->join(',') }}">
                     @if ($item->image_url)
                         <img class="card-image" src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
+                    @elseif ($settings?->logo_url)
+                        <img class="card-image item-fallback-logo" src="{{ $settings->logo_url }}" alt="{{ $settings->restaurant_name }}" loading="lazy">
+                    @else
+                        <span class="card-image item-no-image" aria-hidden="true">{{ mb_substr($item->title, 0, 1) }}</span>
                     @endif
 
                     <div class="card-body">

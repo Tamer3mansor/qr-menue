@@ -30,6 +30,8 @@ class WebsiteController extends Controller
 
         $settings = $tenant->settings;
 
+        $font = self::fontFor($settings);
+
         $offers = $tenant->offers()
             ->currentlyActive()
             ->whereHas('items', fn (Builder $query) => $query->where('is_available', true))
@@ -82,7 +84,8 @@ class WebsiteController extends Controller
             'socialLinks' => $settings?->filledSocialLinks() ?? [],
             'showOffersTicker' => (bool) $settings?->show_offers_ticker,
             'currency' => Setting::currencyFor($tenant),
-            'font' => self::fontFor($settings),
+            'font' => $font,
+            'fontWeights' => self::fontWeightsFor($font),
         ]);
     }
 
@@ -98,10 +101,31 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Google Fonts rejects a stylesheet that requests a weight the family does
+     * not ship, so the narrower Arabic faces stop at 700 while the wide-spectrum
+     * ones keep the heavy display weight the site uses.
+     */
+    protected static function fontWeightsFor(string $font): string
+    {
+        return in_array($font, ['Cairo', 'Tajawal', 'Almarai', 'Noto Sans Arabic'], strict: true)
+            ? '400;600;700;800'
+            : '400;500;600;700';
+    }
+
+    /**
      * @return list<string>
      */
     protected static function fonts(): array
     {
-        return ['Cairo', 'Tajawal', 'Almarai', 'Noto Sans Arabic'];
+        return [
+            'Cairo',
+            'Tajawal',
+            'Almarai',
+            'Noto Sans Arabic',
+            'Reem Kufi',
+            'Amiri',
+            'El Messiri',
+            'Lemonada',
+        ];
     }
 }

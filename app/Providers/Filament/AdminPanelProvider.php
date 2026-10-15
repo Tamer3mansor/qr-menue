@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\SuperAdmin\Pages\StopImpersonating;
+use App\Filament\Widgets\QrMenuInfo;
 use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -16,7 +17,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -33,6 +33,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->brandName('QR Menu')
+            ->brandLogo(fn (): ?string => is_file(public_path('images/logo.png')) ? asset('images/logo.png') : null)
+            ->favicon(fn (): ?string => is_file(public_path('images/favicon.png')) ? asset('images/favicon.png') : null)
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -47,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
+                QrMenuInfo::class,
             ])
             ->userMenuItems([
                 'stop-impersonating' => MenuItem::make()

@@ -14,13 +14,29 @@
             </x-slot>
 
             <div class="flex flex-col items-center gap-6">
-                <img
-                    src="{{ $qrCode->image_url }}"
-                    alt="كود QR لـ {{ $qrCode->url }}"
-                    width="320"
-                    height="320"
-                    class="rounded-xl bg-white p-4"
-                />
+                @if ($this->isImageMissing())
+                    <div class="w-full rounded-lg bg-warning-50 p-4 text-sm text-warning-700 dark:bg-warning-400/10 dark:text-warning-400">
+                        <p class="font-semibold">ملف صورة الكود غير موجود على الخادم.</p>
+                        <p class="mt-1">أعد توليد الكود لاستعادة الصورة قبل طباعته أو مشاركته.</p>
+                        <x-filament::button
+                            color="warning"
+                            icon="heroicon-m-arrow-path"
+                            class="mt-3"
+                            wire:click="regenerate"
+                            wire:loading.attr="disabled"
+                        >
+                            إعادة توليد
+                        </x-filament::button>
+                    </div>
+                @else
+                    <img
+                        src="{{ $qrCode->image_url }}"
+                        alt="كود QR لـ {{ $qrCode->url }}"
+                        width="320"
+                        height="320"
+                        class="rounded-xl bg-white p-4"
+                    />
+                @endif
 
                 <x-filament::link
                     href="{{ $qrCode->url }}"

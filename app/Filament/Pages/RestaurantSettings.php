@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\ColorExtractorService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -16,6 +17,8 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Storage;
 use LogicException;
 
 class RestaurantSettings extends Page
@@ -40,6 +43,14 @@ class RestaurantSettings extends Page
      * @var array<string, mixed> | null
      */
     public ?array $data = [];
+
+    /**
+     * The palette last pulled out of the logo, kept between the modal render
+     * and the submit that applies it.
+     *
+     * @var array{primary: string, secondary: string} | null
+     */
+    public ?array $extractedColors = null;
 
     public function mount(): void
     {
@@ -107,6 +118,82 @@ class RestaurantSettings extends Page
             ->title('تم حفظ الإعدادات.')
             ->success()
             ->send();
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->extractLogoColorsAction(),
+        ];
+    }
+
+    /**
+     * Offers a palette read from the saved logo. Applying only fills the form
+     * state, so nothing reaches the database until the normal save runs.
+     */
+    protected function extractLogoColorsAction(): Action
+    {
+        return Action::make('extractLogoColors')
+            ->label('استخلاص الألوان من الشعار')
+            ->icon(Heroicon::OutlinedSwatch)
+            ->color('warning')
+            ->visible(fn (): bool => filled($this->setting()->logo))
+            ->modalHeading('الألوان المقترحة من الشعار')
+            ->modalSubmitActionLabel('تطبيق الألوان')
+            ->modalCancelActionLabel('تجاهل')
+            ->modalContent(function (): View {
+                $this->extractedColors = null;
+
+                return view('filament.pages.extracted-colors', [
+                    'colors' => $this->runColorExtraction(),
+                ]);
+            })
+            ->action(function (): void {
+                $colors = $this->extractedColors ?? $this->runColorExtraction();
+
+                if ($colors === []) {
+                    Notification::make()
+                        ->title('تعذر استخلاص الألوان من الشعار.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $this->form->fill(array_merge($this->form->getState(), [
+                    'primary_color' => $colors['primary'],
+                    'secondary_color' => $colors['secondary'],
+                ]));
+
+                Notification::make()
+                    ->title('تم تطبيق الألوان — اضغط حفظ لاعتمادها.')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * @return array{primary: string, secondary: string}
+     */
+    protected function runColorExtraction(): array
+    {
+        $extractor = app(ColorExtractorService::class);
+
+        if (! $extractor->isSupported()) {
+            Notification::make()
+                ->title('هذه الميزة غير متاحة حالياً.')
+                ->warning()
+                ->send();
+
+            return [];
+        }
+
+        return $this->extractedColors = $extractor->extractFromImage($this->logoPath());
+    }
+
+    protected function logoPath(): string
+    {
+        return Storage::disk(Setting::DISK)->path((string) $this->setting()->logo);
     }
 
     protected function getSaveAction(): Action

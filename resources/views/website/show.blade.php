@@ -47,7 +47,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family={{ urlencode($font) }}:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family={{ urlencode($font) }}:wght@{{ $fontWeights }}&display=swap" rel="stylesheet">
 
     <script>document.documentElement.classList.add('js');</script>
 
@@ -168,6 +168,17 @@
         .card__placeholder {
             display: grid; place-items: center; width: 100%; height: 100%;
             color: var(--muted); font-size: 2rem;
+        }
+        .card__media img.item-fallback-logo,
+        .card--featured .card__media img.item-fallback-logo {
+            object-fit: contain;
+            padding: 12px;
+            background: #f8f8f8;
+        }
+        .item-no-image {
+            display: grid; place-items: center; width: 100%; height: 100%;
+            background: var(--primary); color: #fff;
+            font-size: 2.5rem; font-weight: 700;
         }
         .card__body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
         .card__title { margin: 0; font-size: .9375rem; font-weight: 700; }
@@ -399,8 +410,10 @@
                                 <div class="card__media">
                                     @if (filled($item->image_url))
                                         <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
+                                    @elseif (filled($logoUrl))
+                                        <img class="item-fallback-logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}" loading="lazy">
                                     @else
-                                        <div class="card__placeholder" aria-hidden="true">🍽️</div>
+                                        <div class="item-no-image" aria-hidden="true">{{ mb_substr($item->title, 0, 1) }}</div>
                                     @endif
                                     <span class="badge badge--featured">مميز</span>
                                     <div class="card__overlay">
@@ -465,8 +478,10 @@
                                     <div class="card__media">
                                         @if (filled($item->image_url))
                                             <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
+                                        @elseif (filled($logoUrl))
+                                            <img class="item-fallback-logo" src="{{ $logoUrl }}" alt="{{ $restaurantName }}" loading="lazy">
                                         @else
-                                            <div class="card__placeholder" aria-hidden="true">🍽️</div>
+                                            <div class="item-no-image" aria-hidden="true">{{ mb_substr($item->title, 0, 1) }}</div>
                                         @endif
 
                                         @if ($offer)

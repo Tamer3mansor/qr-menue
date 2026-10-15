@@ -9,6 +9,7 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,6 +23,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\HtmlString;
 use LogicException;
 
 /**
@@ -57,24 +59,25 @@ class WebsiteSettings extends Page
     /**
      * The Arabic web fonts a menu can be rendered with.
      *
-     * @var list<string>
+     * @var array<string, string>
      */
     public const FONTS = [
-        'Cairo',
-        'Tajawal',
-        'Almarai',
-        'Noto Sans Arabic',
+        'Cairo' => 'Cairo - كايرو',
+        'Tajawal' => 'Tajawal - تجوال',
+        'Almarai' => 'Almarai - المراعي',
+        'Noto Sans Arabic' => 'Noto Sans - نوتو',
+        'Reem Kufi' => 'Reem Kufi - ريم كوفي',
+        'Amiri' => 'Amiri - أميري (كلاسيك)',
+        'El Messiri' => 'El Messiri - المسيري',
+        'Lemonada' => 'Lemonada - ليموناضة',
     ];
 
     /**
-     * Select options are value => label pairs, so a plain list would store the
-     * array index as the font name.
-     *
      * @return array<string, string>
      */
     public static function fontOptions(): array
     {
-        return array_combine(self::FONTS, self::FONTS);
+        return self::FONTS;
     }
 
     /**
@@ -260,7 +263,31 @@ class WebsiteSettings extends Page
                             ->label('الخط')
                             ->options(self::fontOptions())
                             ->default('Cairo')
+                            ->live()
                             ->native(false),
+                        Placeholder::make('primary_font_preview')
+                            ->label('معاينة الخط')
+                            ->content(fn (): HtmlString => new HtmlString(<<<'BLADE'
+                                <div
+                                    x-data="{
+                                        font: $wire.entangle('data.primary_font'),
+                                        get url() {
+                                            return 'https://fonts.googleapis.com/css2?family='
+                                                + encodeURIComponent(this.font || 'Cairo')
+                                                + ':wght@400;500;600;700&display=swap'
+                                        },
+                                    }"
+                                    x-effect="font"
+                                >
+                                    <link rel="stylesheet" :href="url">
+                                    <p
+                                        :style="'font-family: \'' + (font || 'Cairo') + '\', sans-serif;'"
+                                        class="text-2xl leading-relaxed"
+                                    >
+                                        مرحباً بكم في مطعمنا - أهلاً وسهلاً
+                                    </p>
+                                </div>
+                                BLADE)),
                     ])
                     ->columns(2),
             ]);

@@ -29,6 +29,12 @@ class TenantsTable
                     ->label('Email')
                     ->searchable()
                     ->copyable(),
+                TextColumn::make('phone')
+                    ->label('رقم التواصل')
+                    ->icon(Heroicon::OutlinedPhone)
+                    ->getStateUsing(fn (User $record): ?string => $record->settings?->phone)
+                    ->placeholder('—')
+                    ->copyable(),
                 TextInputColumn::make('domain')
                     ->label('Domain')
                     ->rules(['nullable', 'string', 'max:255'])
@@ -53,10 +59,28 @@ class TenantsTable
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 EditAction::make(),
+                self::contactAction(),
                 self::regenerateQrAction(),
                 self::impersonateAction(),
                 DeleteAction::make(),
             ]);
+    }
+
+    /**
+     * Surfaces every contact channel the tenant left behind, so support can
+     * reach them without opening the edit form.
+     */
+    private static function contactAction(): Action
+    {
+        return Action::make('contact')
+            ->label('تواصل')
+            ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+            ->modalHeading('بيانات التواصل')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('إغلاق')
+            ->modalContent(fn (User $record) => view('filament.super-admin.tenants.contact', [
+                'tenant' => $record,
+            ]));
     }
 
     /**

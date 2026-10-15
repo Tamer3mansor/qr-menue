@@ -786,4 +786,50 @@ class SuperAdminPanelTest extends TestCase
             ->assertActionExists('create')
             ->assertActionHasUrl('create', CreateTenant::getUrl());
     }
+
+    public function test_the_tenant_table_shows_the_contact_phone_from_settings(): void
+    {
+        $tenant = User::factory()->create();
+
+        Setting::factory()->create(['user_id' => $tenant, 'phone' => '+20100000000']);
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(ListTenants::class)
+            ->assertCanSeeTableRecords([$tenant])
+            ->assertTableColumnStateSet('phone', '+20100000000', $tenant);
+    }
+
+    public function test_the_contact_phone_column_is_empty_when_the_tenant_left_it_blank(): void
+    {
+        $tenant = User::factory()->create();
+
+        Setting::factory()->create(['user_id' => $tenant, 'phone' => null]);
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(ListTenants::class)
+            ->assertCanSeeTableRecords([$tenant])
+            ->assertTableColumnStateSet('phone', null, $tenant);
+    }
+
+    public function test_the_contact_action_lists_every_channel(): void
+    {
+        $tenant = User::factory()->create(['email' => 'owner@example.com']);
+
+        Setting::factory()->create(['user_id' => $tenant, 'phone' => '+20100000000']);
+
+        $this->actingAsSuperAdmin()->onSuperAdminPanel();
+
+        Livewire::test(ListTenants::class)
+            ->assertTableActionExists('contact');
+
+        // The modal body is a standalone view, so the channels are asserted on
+        // the rendered markup itself.
+        $modal = view('filament.super-admin.tenants.contact', ['tenant' => $tenant->refresh()])->render();
+
+        $this->assertStringContainsString('tel:+20100000000', $modal);
+        $this->assertStringContainsString('https://wa.me/20100000000', $modal);
+        $this->assertStringContainsString('mailto:owner@example.com', $modal);
+    }
 }

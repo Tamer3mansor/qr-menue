@@ -277,6 +277,11 @@ class TenantWebsiteTest extends TestCase
             'cairo' => ['Cairo', 'family=Cairo', true],
             'tajawal' => ['Tajawal', 'family=Tajawal', true],
             'almarai' => ['Almarai', 'family=Almarai', true],
+            'noto sans arabic' => ['Noto Sans Arabic', 'family=Noto+Sans+Arabic', true],
+            'reem kufi' => ['Reem Kufi', 'family=Reem+Kufi', true],
+            'amiri' => ['Amiri', 'family=Amiri', true],
+            'el messiri' => ['El Messiri', 'family=El+Messiri', true],
+            'lemonada' => ['Lemonada', 'family=Lemonada', true],
             'unknown font falls back' => ['Comic Sans', 'family=Cairo', true],
             'missing font falls back' => ['', 'family=Cairo', true],
         ];
@@ -514,6 +519,34 @@ class TenantWebsiteTest extends TestCase
             ->assertOk()
             ->assertSee('/storage/items/lazy.jpg', false)
             ->assertSee('loading="lazy"', false);
+    }
+
+    public function test_an_item_without_an_image_falls_back_to_the_restaurant_logo(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['logo' => 'logos/brand.png']);
+
+        $this->availableItem($tenant, ['title' => 'شاورما', 'image' => null]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('item-fallback-logo', false)
+            ->assertSee('/storage/logos/brand.png', false);
+    }
+
+    public function test_an_item_without_an_image_or_logo_shows_the_first_letter(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['logo' => null]);
+
+        $this->availableItem($tenant, ['title' => 'شاورما', 'image' => null]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('item-no-image', false)
+            ->assertSeeHtml('item-no-image" aria-hidden="true">ش</div>');
     }
 
     public function test_the_contact_link_is_not_in_the_navbar(): void

@@ -8,9 +8,12 @@ use App\Models\User;
 use App\Services\QrCodeService;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Mockery;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
@@ -244,5 +247,45 @@ class QrCodePageTest extends TestCase
                 ->instance()
                 ->getQrCode()
         );
+    }
+
+    public function test_a_missing_image_file_shows_a_warning_instead_of_a_broken_image(): void
+    {
+        $qrCode = $this->tenant->qrCode()->firstOrFail();
+
+        Storage::disk(QrCode::DISK)->delete($qrCode->image_path);
+
+        Livewire::test(QrCodePage::class)
+            ->assertSee('ملف صورة الكود غير موجود')
+            ->assertDontSee('alt="كود QR', false);
+    }
+
+    public function test_regenerating_restores_a_missing_image_file(): void
+    {
+        $qrCode = $this->tenant->qrCode()->firstOrFail();
+
+        Storage::disk(QrCode::DISK)->delete($qrCode->image_path);
+
+        Livewire::test(QrCodePage::class)
+            ->call('regenerate')
+            ->assertDontSee('ملف صورة الكود غير موجود');
+
+        Storage::disk(QrCode::DISK)->assertExists($qrCode->image_path);
+    }
+
+    public function test_generation_fails_loudly_when_the_file_never_lands_on_disk(): void
+    {
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('makeDirectory')->andReturnTrue();
+        $disk->shouldReceive('put')->andReturnTrue();
+        // The write claims to succeed but the file is not there afterwards.
+        $disk->shouldReceive('exists')->andReturnFalse();
+
+        Storage::set(QrCode::DISK, $disk);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('QR generation failed');
+
+        $this->service->generateForTenant($this->tenant);
     }
 }

@@ -517,4 +517,30 @@ class MenuPageTest extends TestCase
             ->assertSee('/storage/items/kebab.jpg', false)
             ->assertSee('alt="LazyKebab" loading="lazy"', false);
     }
+
+    public function test_an_item_without_an_image_falls_back_to_the_restaurant_logo(): void
+    {
+        $this->settings->update(['logo' => 'logos/menu-logo.png']);
+
+        $category = $this->category();
+        $this->item($category, ['title' => 'كباب بدون صورة', 'image' => null]);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertSee('item-fallback-logo', false)
+            ->assertSee('/storage/logos/menu-logo.png', escape: false);
+    }
+
+    public function test_an_item_without_an_image_or_logo_shows_the_first_letter(): void
+    {
+        $this->settings->update(['logo' => null]);
+
+        $category = $this->category();
+        $this->item($category, ['title' => 'كباب', 'image' => null]);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertSee('item-no-image', false)
+            ->assertSeeHtml('item-no-image" aria-hidden="true">ك</span>');
+    }
 }

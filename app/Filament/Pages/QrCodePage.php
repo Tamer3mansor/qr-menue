@@ -50,6 +50,18 @@ class QrCodePage extends Page
         return $this->tenant()->qrCode()->whereKey($this->qrCodeId)->first();
     }
 
+    /**
+     * A database row can outlive its file (failed write, wiped disk), which
+     * would render a broken image instead of a working code.
+     */
+    public function isImageMissing(): bool
+    {
+        $qrCode = $this->getQrCode();
+
+        return filled($qrCode?->image_path)
+            && ! Storage::disk(QrCode::DISK)->exists($qrCode->image_path);
+    }
+
     public function regenerate(): void
     {
         $this->qrCodeId = app(QrCodeService::class)

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Pages\RestaurantSettings;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\ColorExtractorService;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -470,5 +471,86 @@ class RestaurantSettingsPageTest extends TestCase
 
         Storage::disk('public')->assertMissing('logos/gone-logo.png');
         Storage::disk('public')->assertMissing('backgrounds/gone-bg.jpg');
+    }
+
+    public function test_the_extract_colors_action_is_hidden_without_a_logo(): void
+    {
+        Livewire::test(RestaurantSettings::class)
+            ->assertActionHidden('extractLogoColors');
+    }
+
+    public function test_the_extracted_colors_can_be_applied_and_saved(): void
+    {
+        if (! extension_loaded('gd')) {
+            $this->markTestSkipped('The GD extension is required for colour extraction.');
+        }
+
+        Setting::factory()->create([
+            'user_id' => $this->tenant,
+            'logo' => 'logos/brand.png',
+        ]);
+
+        Storage::disk('public')->put('logos/brand.png', $this->twoTonePng());
+
+        Livewire::test(RestaurantSettings::class)
+            ->assertActionVisible('extractLogoColors')
+            ->callAction('extractLogoColors')
+            ->assertFormSet([
+                'primary_color' => '#c81e1e',
+                'secondary_color' => '#1e1ec8',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting = $this->tenant->refresh()->settings;
+
+        $this->assertSame('#c81e1e', $setting->primary_color);
+        $this->assertSame('#1e1ec8', $setting->secondary_color);
+    }
+
+    public function test_without_gd_the_extract_action_reports_the_feature_is_unavailable(): void
+    {
+        $this->app->instance(ColorExtractorService::class, new class extends ColorExtractorService
+        {
+            protected function gdAvailable(): bool
+            {
+                return false;
+            }
+        });
+
+        Setting::factory()->create([
+            'user_id' => $this->tenant,
+            'logo' => 'logos/brand.png',
+            'primary_color' => '#111111',
+            'secondary_color' => '#eeeeee',
+        ]);
+
+        Storage::disk('public')->put('logos/brand.png', 'not-a-real-image');
+
+        Livewire::test(RestaurantSettings::class)
+            ->callAction('extractLogoColors')
+            ->assertNotified(Notification::make()->title('هذه الميزة غير متاحة حالياً.')->warning())
+            ->assertFormSet([
+                'primary_color' => '#111111',
+                'secondary_color' => '#eeeeee',
+            ]);
+    }
+
+    /**
+     * A half red, half blue square, which the extractor reads as those two
+     * exact colours.
+     */
+    private function twoTonePng(): string
+    {
+        $image = imagecreatetruecolor(60, 60);
+
+        imagefilledrectangle($image, 0, 0, 29, 59, imagecolorallocate($image, 200, 30, 30));
+        imagefilledrectangle($image, 30, 0, 59, 59, imagecolorallocate($image, 30, 30, 200));
+
+        ob_start();
+        imagepng($image);
+        imagedestroy($image);
+
+        return (string) ob_get_clean();
     }
 }

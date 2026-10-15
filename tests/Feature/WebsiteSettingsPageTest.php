@@ -191,7 +191,7 @@ class WebsiteSettingsPageTest extends TestCase
 
     public function test_every_font_option_can_be_chosen(): void
     {
-        foreach (WebsiteSettings::FONTS as $font) {
+        foreach (array_keys(WebsiteSettings::FONTS) as $font) {
             Livewire::test(WebsiteSettings::class)
                 ->fillForm(['primary_font' => $font])
                 ->call('save')
