@@ -22,6 +22,8 @@ class LandingController extends Controller
             'price' => (string) config('landing.price'),
             'currency' => (string) config('landing.currency'),
             'period' => (string) config('landing.period'),
+            'stats' => config('landing.stats'),
+            'roadmap' => config('landing.roadmap'),
         ]);
     }
 }

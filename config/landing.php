@@ -57,4 +57,38 @@ return [
 
     'demo_slug' => env('LANDING_DEMO_SLUG', 'demo'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stats
+    |--------------------------------------------------------------------------
+    |
+    | The animated counters shown in the social proof band. Kept in config so
+    | the numbers have one home and can grow without touching the view.
+    |
+    */
+
+    'stats' => [
+        'restaurants' => 50,
+        'setup_minutes' => 2,
+        'satisfaction' => 100,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Roadmap
+    |--------------------------------------------------------------------------
+    |
+    | The public journey timeline. Each step carries a label, an optional note,
+    | and a status of done, current, soon, or locked that drives its styling.
+    |
+    */
+
+    'roadmap' => [
+        ['label' => 'مرحلة الإطلاق', 'note' => 'أول 10 مطاعم انضموا', 'status' => 'done'],
+        ['label' => 'النمو', 'note' => '50+ مطعم وكافيه', 'status' => 'done'],
+        ['label' => 'التطوير المستمر', 'note' => 'تطوير مستمر وميزات جديدة', 'status' => 'current'],
+        ['label' => 'تطبيق الزبائن', 'note' => 'تطبيق موبايل للزبائن', 'status' => 'soon'],
+        ['label' => 'المستقبل', 'note' => 'منصة متكاملة للمطاعم', 'status' => 'locked'],
+    ],
+
 ];
