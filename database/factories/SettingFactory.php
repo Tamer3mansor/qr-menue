@@ -37,6 +37,11 @@ class SettingFactory extends Factory
             'seo_description' => null,
             'seo_keywords' => null,
             'primary_font' => 'Cairo',
+            'working_hours' => Setting::defaultWorkingHours(),
+            'payment_methods' => Setting::defaultPaymentMethods(),
+            'google_rating' => null,
+            'google_review_count' => null,
+            'google_maps_url' => null,
         ];
     }
 

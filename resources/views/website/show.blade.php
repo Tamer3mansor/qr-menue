@@ -20,6 +20,28 @@
         ->max(fn ($item) => (float) $item->price);
 
     $menuUrl = route('menu.show', $user->domain ?: $user->getKey());
+
+    $isOpenNow = $settings?->isOpenNow();
+    $todayHours = $settings?->todayWorkingHours();
+    $enabledPaymentMethods = $settings?->enabledPaymentMethods() ?? [];
+    $googleRating = $settings?->google_rating;
+    $googleReviewCount = $settings?->google_review_count;
+    $formatTime = static fn (?string $time): ?string => \App\Models\Setting::formatTimeOfDay($time);
+
+    $paymentIcons = [
+        'cash' => '💵',
+        'visa' => '💳',
+        'vodafone_cash' => '📱',
+        'instapay' => '🏦',
+        'meeza' => '💳',
+    ];
+
+    $socialIcons = [
+        'facebook' => 'f',
+        'instagram' => 'ig',
+        'whatsapp' => 'wa',
+        'tiktok' => 'tt',
+    ];
 @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -115,7 +137,7 @@
 
         /* Header */
         .site-header {
-            position: sticky; top: 0; z-index: 20;
+            position: sticky; top: 0; z-index: 1000;
             background: transparent;
             border-bottom: 1px solid transparent;
             transition: all .3s ease;
@@ -134,10 +156,41 @@
             border-radius: 10px; background: var(--primary); color: #fff; font-size: .8125rem; font-weight: 800;
         }
 
-        .site-nav { display: none; }
-        .site-nav__link { font-size: .9375rem; font-weight: 600; color: var(--muted); }
+        /* Mobile drawer: hidden off-canvas until the hamburger is tapped. */
+        .site-nav {
+            position: fixed; top: 0; right: 0; z-index: 999;
+            display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+            width: min(75vw, 340px); height: 100vh;
+            padding: 76px 24px 24px;
+            background: #fff;
+            box-shadow: -4px 0 20px rgb(0 0 0 / .18);
+            transform: translateX(100%);
+            visibility: hidden;
+            transition: transform .3s ease, visibility .3s ease;
+        }
+        .site-nav.open { transform: translateX(0); visibility: visible; }
+        .site-nav__link {
+            display: flex; align-items: center; width: 100%; min-height: 44px;
+            font-size: 1rem; font-weight: 600; color: var(--muted);
+        }
         .site-nav__link:hover { color: var(--primary); }
         .header-cta { display: none; }
+
+        .hamburger {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 44px; height: 44px; padding: 0;
+            border: 1px solid var(--border); border-radius: 10px;
+            background: #fff; color: var(--text);
+            font-size: 1.35rem; line-height: 1; cursor: pointer;
+        }
+
+        .nav-overlay {
+            position: fixed; inset: 0; z-index: 998;
+            background: rgb(0 0 0 / .4);
+            opacity: 0; visibility: hidden;
+            transition: opacity .3s ease, visibility .3s ease;
+        }
+        .nav-overlay.open { opacity: 1; visibility: visible; }
 
         /* Hero */
         .hero {
@@ -310,17 +363,71 @@
         }
         .site-footer__meta { display: flex; flex-direction: column; gap: 6px; font-size: .875rem; }
         .site-footer__meta a { color: var(--secondary); font-weight: 700; }
+        .site-footer__payments { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .footer-payment {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 999px;
+            background: rgb(255 255 255 / .1);
+            font-size: .8125rem; font-weight: 600;
+        }
+
+        /* Quick info */
+        .quick-info__grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .quick-card {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+        .quick-card__title {
+            display: flex; align-items: center; gap: 6px;
+            margin: 0; font-size: .8125rem; font-weight: 700; color: var(--muted);
+        }
+        .quick-card__value { margin: 0; font-size: .9375rem; font-weight: 700; }
+        .quick-card__note { margin: 0; font-size: .8125rem; color: var(--muted); }
+        .quick-card__chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+        .quick-card__chips li {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 9px; border-radius: 999px;
+            background: var(--bg); color: var(--text);
+            font-size: .75rem; font-weight: 600;
+        }
+        .quick-card__link { margin-top: auto; color: var(--primary); font-size: .8125rem; font-weight: 700; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            width: fit-content; padding: 4px 10px; border-radius: 999px;
+            font-size: .75rem; font-weight: 700;
+        }
+        .status-badge--open { background: #e8f7ee; color: #17663a; }
+        .status-badge--closed { background: #fdecec; color: #a61b1b; }
+        .google-stars { letter-spacing: 1px; color: #f5a623; }
+        .google-rating__count { color: var(--muted); font-size: .8125rem; font-weight: 500; }
 
         @media (min-width: 640px) {
             :root { --section-pad: 60px; }
             .grid { grid-template-columns: repeat(2, 1fr); }
             .filters { grid-template-columns: 1fr; }
             .site-footer__inner { text-align: start; align-items: flex-start; }
+            .site-footer__payments { justify-content: flex-start; }
+        }
+
+        @media (min-width: 769px) {
+            .site-nav {
+                position: static; width: auto; height: auto;
+                flex-direction: row; align-items: center; gap: 20px;
+                padding: 0; background: transparent; box-shadow: none;
+                transform: none; visibility: visible; transition: none;
+            }
+            .site-nav__link { width: auto; min-height: 0; font-size: .9375rem; }
+            .hamburger, .nav-overlay { display: none; }
         }
 
         @media (min-width: 900px) {
             .grid { grid-template-columns: repeat(3, 1fr); }
-            .site-nav { display: flex; align-items: center; gap: 20px; }
+            .quick-info__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .header-cta { display: inline-flex; }
         }
 
@@ -362,7 +469,7 @@
                 <span>{{ $restaurantName }}</span>
             </a>
 
-            <nav class="site-nav" aria-label="التنقل الرئيسي">
+            <nav class="site-nav nav-links" id="site-nav" aria-label="التنقل الرئيسي">
                 <a class="site-nav__link" href="#home">الرئيسية</a>
                 <a class="site-nav__link" href="#products">المنتجات</a>
                 @if ($hasComboOffers)
@@ -374,8 +481,19 @@
             </nav>
 
             <a class="btn btn--primary header-cta" href="{{ $menuUrl }}">عرض QR Menu</a>
+
+            <button
+                class="hamburger"
+                type="button"
+                onclick="toggleNav()"
+                aria-label="فتح القائمة"
+                aria-controls="site-nav"
+                aria-expanded="false"
+            >☰</button>
         </div>
     </header>
+
+    <div class="nav-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 
     <main id="home">
         <section class="hero" @if (filled($heroImageUrl)) style="background-image: url('{{ $heroImageUrl }}');" @endif>
@@ -392,6 +510,80 @@
 
                 <div class="hero__actions">
                     <a class="btn btn--primary hero__cta" href="{{ filled($phone) ? 'https://wa.me/'.$phone : $menuUrl }}">اطلب الآن</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="why-us">
+            <div class="container">
+                <h2 class="section-title">لماذا نحن؟</h2>
+                <p class="section-lead">كل ما تحتاج معرفته قبل زيارتك.</p>
+
+                <div class="quick-info__grid" data-reveal-group data-reveal-stagger="80">
+                    <article class="quick-card" data-reveal>
+                        <h3 class="quick-card__title">🕒 ساعات العمل</h3>
+
+                        @if ($isOpenNow !== null)
+                            @if ($isOpenNow)
+                                <span class="status-badge status-badge--open">مفتوح الآن 🟢</span>
+                            @else
+                                <span class="status-badge status-badge--closed">مغلق حالياً 🔴</span>
+                            @endif
+                        @endif
+
+                        @if ($todayHours)
+                            <p class="quick-card__value">
+                                @if ($todayHours['closed'])
+                                    مغلق اليوم
+                                @else
+                                    {{ $formatTime($todayHours['open']) }} - {{ $formatTime($todayHours['close']) }}
+                                @endif
+                            </p>
+                            <p class="quick-card__note">{{ $todayHours['label'] }}</p>
+                        @else
+                            <p class="quick-card__value">غير محددة</p>
+                        @endif
+                    </article>
+
+                    @if (filled($googleRating))
+                        <article class="quick-card" data-reveal>
+                            <h3 class="quick-card__title">⭐ تقييم Google</h3>
+                            <p class="quick-card__value">
+                                {{ number_format((float) $googleRating, 1) }}
+                                <span class="google-stars" aria-hidden="true">★★★★★</span>
+                            </p>
+                            @if (filled($googleReviewCount))
+                                <p class="quick-card__note">{{ number_format((int) $googleReviewCount) }} تقييم</p>
+                            @endif
+                            @if (filled($settings?->google_maps_url))
+                                <a class="quick-card__link" href="{{ $settings->google_maps_url }}" target="_blank" rel="noopener">
+                                    اقرأ التقييمات على Google
+                                </a>
+                            @endif
+                        </article>
+                    @endif
+
+                    @if ($enabledPaymentMethods !== [])
+                        <article class="quick-card" data-reveal>
+                            <h3 class="quick-card__title">💳 طرق الدفع</h3>
+                            <ul class="quick-card__chips">
+                                @foreach ($enabledPaymentMethods as $method)
+                                    <li>
+                                        <span aria-hidden="true">{{ $paymentIcons[$method['type']] ?? '💳' }}</span>
+                                        {{ $method['label'] }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </article>
+                    @endif
+
+                    @if (filled($phone))
+                        <article class="quick-card" data-reveal>
+                            <h3 class="quick-card__title">💬 واتساب مباشر</h3>
+                            <p class="quick-card__note">اطلب أو استفسر مباشرة عن أي صنف.</p>
+                            <a class="btn btn--primary" href="https://wa.me/{{ $phone }}">تواصل على واتساب</a>
+                        </article>
+                    @endif
                 </div>
             </div>
         </section>
@@ -610,13 +802,19 @@
                 <div class="site-footer__social">
                     @foreach ($socialLinks as $network => $url)
                         <a class="social-link" href="{{ $url }}" rel="noopener" target="_blank" aria-label="{{ $network }}">
-                            @switch($network)
-                                @case('facebook') f
-                                @case('instagram') ig
-                                @case('whatsapp') wa
-                                @default {{ \Illuminate\Support\Str::of($network)->substr(0, 2) }}
-                            @endswitch
+                            {{ $socialIcons[$network] ?? \Illuminate\Support\Str::substr($network, 0, 2) }}
                         </a>
+                    @endforeach
+                </div>
+            @endif
+
+            @if ($enabledPaymentMethods !== [])
+                <div class="site-footer__payments" aria-label="طرق الدفع">
+                    @foreach ($enabledPaymentMethods as $method)
+                        <span class="footer-payment">
+                            <span aria-hidden="true">{{ $paymentIcons[$method['type']] ?? '💳' }}</span>
+                            {{ $method['label'] }}
+                        </span>
                     @endforeach
                 </div>
             @endif
@@ -632,6 +830,25 @@
     </footer>
 
     <script>
+        function toggleNav() {
+            var nav = document.querySelector('.nav-links');
+            var overlay = document.querySelector('.nav-overlay');
+            var button = document.querySelector('.hamburger');
+
+            if (!nav || !overlay) {
+                return;
+            }
+
+            var isOpen = nav.classList.toggle('open');
+
+            overlay.classList.toggle('open', isOpen);
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+
+            if (button) {
+                button.setAttribute('aria-expanded', String(isOpen));
+            }
+        }
+
         (function () {
             'use strict';
 
@@ -770,9 +987,19 @@
                         return;
                     }
 
+                    if (document.querySelector('.nav-links.open')) {
+                        toggleNav();
+                    }
+
                     event.preventDefault();
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && document.querySelector('.nav-links.open')) {
+                    toggleNav();
+                }
             });
         })();
     </script>

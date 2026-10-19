@@ -9,18 +9,22 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Form;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\HtmlString;
@@ -90,7 +94,13 @@ class WebsiteSettings extends Page
 
     public function mount(): void
     {
-        $this->form->fill($this->setting()->attributesToArray());
+        $setting = $this->setting();
+
+        $this->form->fill([
+            ...$setting->attributesToArray(),
+            'working_hours' => $setting->workingHours(),
+            'payment_methods' => $setting->paymentMethods(),
+        ]);
     }
 
     public function form(Schema $schema): Schema
@@ -112,6 +122,7 @@ class WebsiteSettings extends Page
                                         $this->socialMediaTab(),
                                         $this->seoTab(),
                                         $this->appearanceTab(),
+                                        $this->extraInfoTab(),
                                     ]),
                             ]),
                     ])
@@ -291,6 +302,120 @@ class WebsiteSettings extends Page
                     ])
                     ->columns(2),
             ]);
+    }
+
+    protected function extraInfoTab(): Tab
+    {
+        return Tab::make('معلومات إضافية')
+            ->icon(Heroicon::OutlinedInformationCircle)
+            ->schema([
+                Section::make('ساعات العمل')
+                    ->description('حدد مواعيد الفتح والإغلاق لكل يوم، أو فعّل "مغلق" في أيام الإجازة.')
+                    ->schema($this->workingHoursFields())
+                    ->columns(1),
+                Section::make('طرق الدفع')
+                    ->description('فعّل الطرق المتاحة واكتب بيانات التحويل لكل طريقة.')
+                    ->schema($this->paymentMethodFields())
+                    ->columns(1),
+                Section::make('تقييم Google')
+                    ->schema([
+                        TextInput::make('google_rating')
+                            ->label('التقييم')
+                            ->numeric()
+                            ->step(0.1)
+                            ->minValue(1)
+                            ->maxValue(5)
+                            ->placeholder('4.8'),
+                        TextInput::make('google_review_count')
+                            ->label('عدد التقييمات')
+                            ->integer()
+                            ->minValue(0)
+                            ->placeholder('230'),
+                        TextInput::make('google_maps_url')
+                            ->label('رابط صفحة Google')
+                            ->url()
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
+            ]);
+    }
+
+    /**
+     * Seven fixed rows, one per weekday, so the schedule can never lose a day.
+     *
+     * @return array<int, Grid>
+     */
+    protected function workingHoursFields(): array
+    {
+        $fields = [];
+
+        foreach (Setting::DAYS as $day => $label) {
+            $fields[] = Grid::make(4)
+                ->schema([
+                    Placeholder::make("working_hours_{$day}_label")
+                        ->content($label)
+                        ->hiddenLabel(),
+                    Toggle::make("working_hours.{$day}.closed")
+                        ->label('مغلق')
+                        ->live(),
+                    TimePicker::make("working_hours.{$day}.open")
+                        ->label('من')
+                        ->seconds(false)
+                        ->hidden(fn (Get $get): bool => (bool) $get("working_hours.{$day}.closed")),
+                    TimePicker::make("working_hours.{$day}.close")
+                        ->label('لـ')
+                        ->seconds(false)
+                        ->hidden(fn (Get $get): bool => (bool) $get("working_hours.{$day}.closed")),
+                ]);
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Five fixed rows, one per supported payment method.
+     *
+     * @return array<int, Grid>
+     */
+    protected function paymentMethodFields(): array
+    {
+        $fields = [];
+
+        foreach (Setting::defaultPaymentMethods() as $index => $method) {
+            $type = $method['type'];
+
+            $fields[] = Grid::make(4)
+                ->schema([
+                    Toggle::make("payment_methods.{$index}.enabled")
+                        ->label('مفعل')
+                        ->live(),
+                    Placeholder::make("payment_methods_{$index}_label")
+                        ->content($method['label'])
+                        ->hiddenLabel(),
+                    Hidden::make("payment_methods.{$index}.type")
+                        ->default($type),
+                    Hidden::make("payment_methods.{$index}.label")
+                        ->default($method['label']),
+                    TextInput::make("payment_methods.{$index}.value")
+                        ->label('رقم/رابط/يوزرنيم')
+                        ->placeholder($this->paymentMethodPlaceholder($type))
+                        ->visible(fn (Get $get): bool => (bool) $get("payment_methods.{$index}.enabled")
+                            && ! in_array($type, ['cash', 'visa'], strict: true)),
+                ]);
+        }
+
+        return $fields;
+    }
+
+    protected function paymentMethodPlaceholder(string $type): string
+    {
+        return match ($type) {
+            'vodafone_cash' => '01xxxxxxxxx',
+            'instapay' => 'username',
+            'meeza' => 'رقم المحفظة',
+            default => '',
+        };
     }
 
     public function save(): void

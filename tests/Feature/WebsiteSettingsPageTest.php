@@ -219,6 +219,93 @@ class WebsiteSettingsPageTest extends TestCase
             ]);
     }
 
+    public function test_the_extra_info_tab_renders_its_fields(): void
+    {
+        Livewire::test(WebsiteSettings::class)
+            ->assertOk()
+            ->assertSchemaComponentExists('working_hours.saturday.open')
+            ->assertSchemaComponentExists('working_hours.saturday.close')
+            ->assertSchemaComponentExists('working_hours.saturday.closed')
+            ->assertSchemaComponentExists('working_hours.friday.closed')
+            ->assertSchemaComponentExists('payment_methods.0.enabled')
+            ->assertSchemaComponentExists('payment_methods.0.type')
+            ->assertSchemaComponentExists('payment_methods.0.value')
+            ->assertSchemaComponentExists('payment_methods.4.value')
+            ->assertSchemaComponentExists('google_rating')
+            ->assertSchemaComponentExists('google_review_count')
+            ->assertSchemaComponentExists('google_maps_url');
+    }
+
+    public function test_the_working_hours_are_saved(): void
+    {
+        $hours = Setting::defaultWorkingHours();
+        $hours['saturday'] = ['open' => '10:00', 'close' => '20:00', 'closed' => false];
+
+        Livewire::test(WebsiteSettings::class)
+            ->fillForm(['working_hours' => $hours])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $saved = $this->tenant->refresh()->settings->working_hours;
+
+        $this->assertSame('10:00', $saved['saturday']['open']);
+        $this->assertSame('20:00', $saved['saturday']['close']);
+        $this->assertFalse($saved['saturday']['closed']);
+    }
+
+    public function test_a_closed_day_is_saved(): void
+    {
+        $hours = Setting::defaultWorkingHours();
+        $hours['monday'] = ['open' => '09:00', 'close' => '23:00', 'closed' => true];
+
+        Livewire::test(WebsiteSettings::class)
+            ->fillForm(['working_hours' => $hours])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue($this->tenant->refresh()->settings->working_hours['monday']['closed']);
+    }
+
+    public function test_the_payment_methods_are_saved(): void
+    {
+        $methods = Setting::defaultPaymentMethods();
+        $methods[2] = [
+            'type' => 'vodafone_cash',
+            'label' => 'فودافون كاش',
+            'value' => '01012345678',
+            'enabled' => true,
+        ];
+
+        Livewire::test(WebsiteSettings::class)
+            ->fillForm(['payment_methods' => $methods])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $saved = $this->tenant->refresh()->settings->payment_methods;
+
+        $this->assertTrue($saved[2]['enabled']);
+        $this->assertSame('01012345678', $saved[2]['value']);
+        $this->assertSame('vodafone_cash', $saved[2]['type']);
+    }
+
+    public function test_the_google_rating_is_saved(): void
+    {
+        Livewire::test(WebsiteSettings::class)
+            ->fillForm([
+                'google_rating' => 4.8,
+                'google_review_count' => 230,
+                'google_maps_url' => 'https://maps.google.com/?cid=123',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting = $this->tenant->refresh()->settings;
+
+        $this->assertSame(4.8, $setting->google_rating);
+        $this->assertSame(230, $setting->google_review_count);
+        $this->assertSame('https://maps.google.com/?cid=123', $setting->google_maps_url);
+    }
+
     public function test_it_is_a_page_of_its_own(): void
     {
         $this->assertNotSame(

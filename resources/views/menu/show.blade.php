@@ -2,6 +2,29 @@
     $primary = $settings?->primary_color ?: '#000000';
     $secondary = $settings?->secondary_color ?: '#ffffff';
     $hasComboOffers = $comboOffers->isNotEmpty();
+
+    $isOpenNow = $settings?->isOpenNow();
+    $todayHours = $settings?->todayWorkingHours();
+    $enabledPaymentMethods = $settings?->enabledPaymentMethods() ?? [];
+    $socialLinks = $settings?->filledSocialLinks() ?? [];
+    $googleRating = $settings?->google_rating;
+    $googleReviewCount = $settings?->google_review_count;
+    $formatTime = static fn (?string $time): ?string => \App\Models\Setting::formatTimeOfDay($time);
+
+    $paymentIcons = [
+        'cash' => '💵',
+        'visa' => '💳',
+        'vodafone_cash' => '📱',
+        'instapay' => '🏦',
+        'meeza' => '💳',
+    ];
+
+    $socialIcons = [
+        'facebook' => 'f',
+        'instagram' => 'ig',
+        'whatsapp' => 'wa',
+        'tiktok' => 'tt',
+    ];
 @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -319,6 +342,112 @@
             border-radius: var(--radius);
         }
 
+        /* Restaurant info */
+        .restaurant-info {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgb(0 0 0 / .05), 0 6px 18px rgb(0 0 0 / .05);
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 9px 0;
+            font-size: 14px;
+        }
+
+        .info-row:first-child { padding-top: 0; }
+        .info-row:last-child { padding-bottom: 0; }
+        .info-row + .info-row { border-top: 1px solid #eef0f3; }
+
+        .info-label { color: var(--muted); }
+
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .info-badge--open { background: #e8f7ee; color: #17663a; }
+        .info-badge--closed { background: #fdecec; color: #a61b1b; }
+
+        .info-row--payments { gap: 6px; }
+
+        .payment-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 32px;
+            padding: 4px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: #fafafa;
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        button.payment-chip {
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease;
+        }
+
+        button.payment-chip:hover { background: var(--brand-tint); border-color: var(--brand-primary); }
+
+        .info-row--social { gap: 6px; }
+
+        .social-mini {
+            display: grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--brand-tint);
+            color: var(--brand-primary);
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .google-rating {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .google-rating__count { color: var(--muted); font-size: 12px; font-weight: 500; }
+
+        .copy-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            z-index: 50;
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: #111827;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 12px);
+            transition: opacity .2s ease, transform .2s ease;
+        }
+
+        .copy-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
         @media (min-width: 640px) {
             .card-title { font-size: 16px; }
         }
@@ -353,6 +482,99 @@
             </div>
         </div>
     </header>
+
+    @if ($settings)
+        <section class="restaurant-info" aria-label="معلومات المطعم">
+            @if ($isOpenNow !== null)
+                <div class="info-row">
+                    @if ($isOpenNow)
+                        <span class="info-badge info-badge--open">مفتوح الآن 🟢</span>
+                    @else
+                        <span class="info-badge info-badge--closed">مغلق حالياً 🔴</span>
+                    @endif
+                </div>
+            @endif
+
+            @if ($todayHours)
+                <div class="info-row">
+                    <span class="info-label">اليوم ({{ $todayHours['label'] }}):</span>
+
+                    @if ($todayHours['closed'])
+                        <span>مغلق</span>
+                    @else
+                        <span>{{ $formatTime($todayHours['open']) }} - {{ $formatTime($todayHours['close']) }}</span>
+                    @endif
+                </div>
+            @endif
+
+            @if ($enabledPaymentMethods !== [])
+                <div class="info-row info-row--payments">
+                    @foreach ($enabledPaymentMethods as $method)
+                        @php $icon = $paymentIcons[$method['type']] ?? '💳'; @endphp
+
+                        @if (filled($method['value']))
+                            <button
+                                type="button"
+                                class="payment-chip"
+                                data-copy="{{ $method['value'] }}"
+                                onclick="copyPayment(this)"
+                                title="انقر لنسخ {{ $method['label'] }}"
+                            >
+                                <span aria-hidden="true">{{ $icon }}</span>
+                                {{ $method['label'] }}
+                            </button>
+                        @else
+                            <span class="payment-chip">
+                                <span aria-hidden="true">{{ $icon }}</span>
+                                {{ $method['label'] }}
+                            </span>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+
+            @if ($socialLinks !== [])
+                <div class="info-row info-row--social">
+                    @foreach ($socialLinks as $network => $url)
+                        <a
+                            class="social-mini"
+                            href="{{ $url }}"
+                            target="_blank"
+                            rel="noopener"
+                            aria-label="{{ $network }}"
+                        >{{ $socialIcons[$network] ?? \Illuminate\Support\Str::substr($network, 0, 2) }}</a>
+                    @endforeach
+                </div>
+            @endif
+
+            @if (filled($googleRating))
+                <div class="info-row">
+                    @if (filled($settings->google_maps_url))
+                        <a
+                            class="google-rating"
+                            href="{{ $settings->google_maps_url }}"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            <span aria-hidden="true">⭐</span>
+                            {{ number_format((float) $googleRating, 1) }}
+                            @if (filled($googleReviewCount))
+                                <span class="google-rating__count">({{ number_format((int) $googleReviewCount) }} تقييم)</span>
+                            @endif
+                        </a>
+                    @else
+                        <span class="google-rating">
+                            <span aria-hidden="true">⭐</span>
+                            {{ number_format((float) $googleRating, 1) }}
+                            @if (filled($googleReviewCount))
+                                <span class="google-rating__count">({{ number_format((int) $googleReviewCount) }} تقييم)</span>
+                            @endif
+                        </span>
+                    @endif
+                </div>
+            @endif
+        </section>
+    @endif
 
     @if ($hasComboOffers)
         <section class="section" id="offers">
@@ -460,7 +682,55 @@
     @endforelse
 </div>
 
+<div class="copy-toast" id="copy-toast" role="status" aria-live="polite"></div>
+
 <script>
+    function copyPayment(button) {
+        var value = button.getAttribute('data-copy') || '';
+        var toast = document.getElementById('copy-toast');
+        var timer;
+
+        function showToast() {
+            if (!toast) {
+                return;
+            }
+
+            toast.textContent = 'تم النسخ ✓';
+            toast.classList.add('is-visible');
+            window.clearTimeout(timer);
+            timer = window.setTimeout(function () {
+                toast.classList.remove('is-visible');
+            }, 1800);
+        }
+
+        function fallback() {
+            var field = document.createElement('textarea');
+
+            field.value = value;
+            field.setAttribute('readonly', '');
+            field.style.position = 'fixed';
+            field.style.opacity = '0';
+
+            document.body.appendChild(field);
+            field.select();
+
+            try {
+                document.execCommand('copy');
+                showToast();
+            } catch (error) {
+                // The browser refused the fallback; there is nothing else to try.
+            }
+
+            document.body.removeChild(field);
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(value).then(showToast).catch(fallback);
+        } else {
+            fallback();
+        }
+    }
+
     (function () {
         'use strict';
 

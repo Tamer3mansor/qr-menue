@@ -549,6 +549,88 @@ class TenantWebsiteTest extends TestCase
             ->assertSeeHtml('item-no-image" aria-hidden="true">ش</div>');
     }
 
+    public function test_the_navbar_has_a_hamburger_button(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('class="hamburger"', false)
+            ->assertSee('onclick="toggleNav()"', false)
+            ->assertSee('aria-controls="site-nav"', false);
+    }
+
+    public function test_the_navbar_uses_the_mobile_nav_links_classes(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('nav-links', false)
+            ->assertSee('nav-overlay', false)
+            ->assertSee('function toggleNav()', false);
+    }
+
+    public function test_each_social_link_renders_a_single_icon(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['social_links' => [
+            'facebook' => 'https://facebook.com/layali',
+            'instagram' => 'https://instagram.com/layali',
+            'whatsapp' => 'https://wa.me/201013699131',
+        ]]);
+
+        $content = $this->get('/site/demo')->assertOk()->getContent();
+
+        preg_match_all('/<a class="social-link"[^>]*>(.*?)<\/a>/s', $content, $matches);
+
+        $labels = array_map(
+            fn (string $label): string => trim(preg_replace('/\s+/', ' ', $label)),
+            $matches[1],
+        );
+
+        $this->assertSame(['f', 'ig', 'wa'], $labels);
+    }
+
+    public function test_the_quick_info_section_shows_the_restaurant_details(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update([
+            'payment_methods' => [
+                ['type' => 'cash', 'label' => 'كاش', 'value' => null, 'enabled' => true],
+                ['type' => 'instapay', 'label' => 'انستاباي', 'value' => 'layali', 'enabled' => true],
+            ],
+            'google_rating' => 4.8,
+            'google_review_count' => 230,
+            'google_maps_url' => 'https://maps.google.com/?cid=123',
+        ]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('لماذا نحن؟')
+            ->assertSee('طرق الدفع')
+            ->assertSee('انستاباي')
+            ->assertSee('4.8')
+            ->assertSee('230 تقييم')
+            ->assertSee('https://maps.google.com/?cid=123', false);
+    }
+
+    public function test_the_footer_lists_the_enabled_payment_methods(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['payment_methods' => [
+            ['type' => 'cash', 'label' => 'كاش', 'value' => null, 'enabled' => true],
+        ]]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('site-footer__payments', false)
+            ->assertSee('كاش');
+    }
+
     public function test_the_contact_link_is_not_in_the_navbar(): void
     {
         $tenant = $this->tenant();
