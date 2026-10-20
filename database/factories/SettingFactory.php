@@ -42,6 +42,9 @@ class SettingFactory extends Factory
             'google_rating' => null,
             'google_review_count' => null,
             'google_maps_url' => null,
+            'chat_enabled' => true,
+            'chat_avatar_type' => 'robot',
+            'chat_welcome_message' => 'أهلاً! كيف أقدر أساعدك؟',
         ];
     }
 

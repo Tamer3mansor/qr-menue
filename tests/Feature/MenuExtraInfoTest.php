@@ -82,7 +82,7 @@ class MenuExtraInfoTest extends TestCase
 
     public function test_the_open_badge_is_shown_during_working_hours(): void
     {
-        Carbon::setTestNow('2026-10-19 12:00:00');
+        $this->freezeAt('2026-10-19 12:00:00');
 
         $this->settings->update(['working_hours' => [
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
@@ -94,9 +94,22 @@ class MenuExtraInfoTest extends TestCase
             ->assertDontSee('مغلق حالياً');
     }
 
+    public function test_the_open_badge_uses_the_dashboard_default_schedule(): void
+    {
+        $this->freezeAt('2026-10-19 12:00:00');
+
+        $this->settings->update(['working_hours' => null]);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertSee('مفتوح الآن')
+            ->assertDontSee('مغلق حالياً')
+            ->assertSee('9 صباحاً - 11 مساءً');
+    }
+
     public function test_the_closed_badge_is_shown_outside_working_hours(): void
     {
-        Carbon::setTestNow('2026-10-19 02:00:00');
+        $this->freezeAt('2026-10-19 02:00:00');
 
         $this->settings->update(['working_hours' => [
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
@@ -110,7 +123,7 @@ class MenuExtraInfoTest extends TestCase
 
     public function test_the_current_day_hours_are_shown(): void
     {
-        Carbon::setTestNow('2026-10-19 12:00:00');
+        $this->freezeAt('2026-10-19 12:00:00');
 
         $this->settings->update(['working_hours' => [
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
@@ -120,5 +133,10 @@ class MenuExtraInfoTest extends TestCase
             ->assertOk()
             ->assertSee('الاثنين')
             ->assertSee('9 صباحاً - 11 مساءً');
+    }
+
+    private function freezeAt(string $time): void
+    {
+        Carbon::setTestNow(Carbon::parse($time, config('app.business_timezone')));
     }
 }

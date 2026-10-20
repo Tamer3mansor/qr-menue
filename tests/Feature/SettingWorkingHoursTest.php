@@ -22,7 +22,7 @@ class SettingWorkingHoursTest extends TestCase
 
     public function test_it_is_open_inside_the_opening_hours(): void
     {
-        Carbon::setTestNow('2026-10-19 10:00:00');
+        $this->freezeAt('2026-10-19 10:00:00');
 
         $setting = $this->setting([
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
@@ -33,7 +33,7 @@ class SettingWorkingHoursTest extends TestCase
 
     public function test_it_is_closed_outside_the_opening_hours(): void
     {
-        Carbon::setTestNow('2026-10-19 08:30:00');
+        $this->freezeAt('2026-10-19 08:30:00');
 
         $setting = $this->setting([
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
@@ -41,14 +41,14 @@ class SettingWorkingHoursTest extends TestCase
 
         $this->assertFalse($setting->isOpenNow());
 
-        Carbon::setTestNow('2026-10-19 23:30:00');
+        $this->freezeAt('2026-10-19 23:30:00');
 
         $this->assertFalse($setting->isOpenNow());
     }
 
     public function test_it_is_closed_on_a_closed_day(): void
     {
-        Carbon::setTestNow('2026-10-19 12:00:00');
+        $this->freezeAt('2026-10-19 12:00:00');
 
         $setting = $this->setting([
             'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => true],
@@ -57,10 +57,36 @@ class SettingWorkingHoursTest extends TestCase
         $this->assertFalse($setting->isOpenNow());
     }
 
-    public function test_it_returns_null_when_there_is_no_schedule(): void
+    public function test_the_default_schedule_is_used_when_none_was_saved(): void
     {
-        $this->assertNull($this->setting(null)->isOpenNow());
-        $this->assertNull($this->setting([])->isOpenNow());
+        $this->freezeAt('2026-10-19 12:00:00');
+
+        $setting = $this->setting(null);
+
+        $this->assertTrue($setting->isOpenNow());
+        $this->assertSame('09:00', $setting->todayWorkingHours()['open']);
+        $this->assertSame('23:00', $setting->todayWorkingHours()['close']);
+    }
+
+    public function test_the_default_schedule_closes_on_friday(): void
+    {
+        $this->freezeAt('2026-10-23 12:00:00');
+
+        $setting = $this->setting([]);
+
+        $this->assertFalse($setting->isOpenNow());
+    }
+
+    public function test_working_hours_are_judged_in_the_business_timezone(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-19 08:30:00', 'UTC'));
+
+        $setting = $this->setting([
+            'monday' => ['open' => '09:00', 'close' => '23:00', 'closed' => false],
+        ]);
+
+        // 08:30 UTC is 11:30 in Cairo, so the restaurant is open.
+        $this->assertTrue($setting->isOpenNow());
     }
 
     /**
@@ -78,7 +104,7 @@ class SettingWorkingHoursTest extends TestCase
     #[DataProvider('overnightTimes')]
     public function test_a_shift_that_crosses_midnight_is_handled(string $now, bool $expected): void
     {
-        Carbon::setTestNow($now);
+        $this->freezeAt($now);
 
         $setting = $this->setting([
             'monday' => ['open' => '22:00', 'close' => '02:00', 'closed' => false],
@@ -117,5 +143,10 @@ class SettingWorkingHoursTest extends TestCase
             'user_id' => $tenant->getKey(),
             'working_hours' => $workingHours,
         ]);
+    }
+
+    private function freezeAt(string $time): void
+    {
+        Carbon::setTestNow(Carbon::parse($time, config('app.business_timezone')));
     }
 }

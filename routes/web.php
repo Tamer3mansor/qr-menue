@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\WebsiteController;
@@ -14,6 +15,20 @@ Route::get('/', [LandingController::class, 'index'])->name('landing');
 Route::get('/menu/{slug}', [MenuController::class, 'show'])->name('menu.show');
 
 Route::get('/site/{slug}', [WebsiteController::class, 'show'])->name('site.show');
+
+/*
+| The visitor chatbot is public, so it is throttled to keep a single session
+| from running up the restaurant's AI bill.
+*/
+Route::post('/menu/{slug}/chat', [ChatController::class, 'chat'])
+    ->middleware('throttle:20,1')
+    ->name('menu.chat');
+Route::post('/menu/{slug}/chat/clear', [ChatController::class, 'clearChat'])->name('menu.chat.clear');
+
+Route::post('/site/{slug}/chat', [ChatController::class, 'chat'])
+    ->middleware('throttle:20,1')
+    ->name('site.chat');
+Route::post('/site/{slug}/chat/clear', [ChatController::class, 'clearChat'])->name('site.chat.clear');
 
 /*
 | Tenant websites used to be served from a subdomain, so demo.example.com

@@ -36,6 +36,9 @@ use Illuminate\Support\Facades\Storage;
     'google_rating',
     'google_review_count',
     'google_maps_url',
+    'chat_enabled',
+    'chat_avatar_type',
+    'chat_welcome_message',
 ])]
 #[ObservedBy(SettingObserver::class)]
 class Setting extends Model
@@ -78,6 +81,7 @@ class Setting extends Model
             'payment_methods' => 'array',
             'google_rating' => 'float',
             'google_review_count' => 'integer',
+            'chat_enabled' => 'boolean',
         ];
     }
 
@@ -185,25 +189,18 @@ class Setting extends Model
     }
 
     /**
-     * The current day's opening times, or null when no schedule is known.
+     * The current day's opening times. The stored schedule is merged over the
+     * defaults, which are the same hours the dashboard always shows.
      *
-     * @return array{key: string, label: string, open: string, close: string, closed: bool} | null
+     * @return array{key: string, label: string, open: string, close: string, closed: bool}
      */
-    public function todayWorkingHours(?CarbonInterface $now = null): ?array
+    public function todayWorkingHours(?CarbonInterface $now = null): array
     {
-        if (! is_array($this->working_hours) || $this->working_hours === []) {
-            return null;
-        }
-
-        $now ??= now();
+        $now ??= now(config('app.business_timezone'));
 
         $key = self::dayKeyFor($now);
 
-        $day = $this->workingHours()[$key] ?? null;
-
-        if ($day === null) {
-            return null;
-        }
+        $day = $this->workingHours()[$key];
 
         return [
             'key' => $key,
@@ -215,17 +212,14 @@ class Setting extends Model
     }
 
     /**
-     * Whether the tenant is open right now, or null when no schedule is known.
+     * Whether the tenant is open right now, judged by the restaurant's local
+     * time rather than the UTC timestamp the application stores.
      */
-    public function isOpenNow(?CarbonInterface $now = null): ?bool
+    public function isOpenNow(?CarbonInterface $now = null): bool
     {
+        $now ??= now(config('app.business_timezone'));
+
         $today = $this->todayWorkingHours($now);
-
-        if ($today === null) {
-            return null;
-        }
-
-        $now ??= now();
 
         $current = ((int) $now->hour * 60) + (int) $now->minute;
 
@@ -233,25 +227,23 @@ class Setting extends Model
             $open = self::minutesOfDay($today['open']);
             $close = self::minutesOfDay($today['close']);
 
-            if ($open === null || $close === null) {
-                return null;
-            }
+            if ($open !== null && $close !== null) {
+                if ($close > $open && $current >= $open && $current < $close) {
+                    return true;
+                }
 
-            if ($close > $open && $current >= $open && $current < $close) {
-                return true;
-            }
-
-            // A closing time earlier than the opening time means the shift
-            // wraps past midnight.
-            if ($close <= $open && $current >= $open) {
-                return true;
+                // A closing time earlier than the opening time means the shift
+                // wraps past midnight.
+                if ($close <= $open && $current >= $open) {
+                    return true;
+                }
             }
         }
 
         // An overnight shift that started yesterday may still be running.
         $previous = $this->todayWorkingHours($now->copy()->subDay());
 
-        if ($previous !== null && ! $previous['closed']) {
+        if (! $previous['closed']) {
             $previousOpen = self::minutesOfDay($previous['open']);
             $previousClose = self::minutesOfDay($previous['close']);
 

@@ -123,6 +123,7 @@ class WebsiteSettings extends Page
                                         $this->seoTab(),
                                         $this->appearanceTab(),
                                         $this->extraInfoTab(),
+                                        $this->chatTab(),
                                     ]),
                             ]),
                     ])
@@ -338,6 +339,37 @@ class WebsiteSettings extends Page
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+            ]);
+    }
+
+    protected function chatTab(): Tab
+    {
+        return Tab::make('المساعد الذكي')
+            ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+            ->schema([
+                Section::make('المساعد الذكي')
+                    ->description('فعّل الشات بوت للزوار واختر شكل الأيقونة ورسالة الترحيب.')
+                    ->schema([
+                        Toggle::make('chat_enabled')
+                            ->label('تفعيل المساعد الذكي')
+                            ->default(true),
+                        Select::make('chat_avatar_type')
+                            ->label('شكل الأيقونة')
+                            ->options([
+                                'robot' => '🤖 روبوت',
+                                'chef' => '👨‍🍳 شيف',
+                                'star' => '⭐ نجمة',
+                                'logo' => '🖼️ لوجو المطعم',
+                            ])
+                            ->default('robot')
+                            ->required(),
+                        TextInput::make('chat_welcome_message')
+                            ->label('رسالة الترحيب')
+                            ->placeholder('أهلاً! كيف أقدر أساعدك؟')
+                            ->helperText('أول رسالة بيشوفها الزبون.')
+                            ->maxLength(255),
+                    ])
+                    ->columns(1),
             ]);
     }
 

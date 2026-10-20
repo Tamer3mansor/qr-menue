@@ -83,6 +83,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Business Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Working hours are entered as the restaurant's local wall-clock times,
+    | while timestamps are stored in UTC. This timezone is used to decide
+    | whether a restaurant is currently open.
+    |
+    */
+
+    'business_timezone' => env('APP_BUSINESS_TIMEZONE', 'Africa/Cairo'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

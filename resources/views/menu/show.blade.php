@@ -18,13 +18,6 @@
         'instapay' => '🏦',
         'meeza' => '💳',
     ];
-
-    $socialIcons = [
-        'facebook' => 'f',
-        'instagram' => 'ig',
-        'whatsapp' => 'wa',
-        'tiktok' => 'tt',
-    ];
 @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -413,8 +406,9 @@
             border-radius: 50%;
             background: var(--brand-tint);
             color: var(--brand-primary);
-            font-size: 12px;
+            font-size: 16px;
             font-weight: 700;
+            line-height: 1;
             text-decoration: none;
         }
 
@@ -542,7 +536,7 @@
                             target="_blank"
                             rel="noopener"
                             aria-label="{{ $network }}"
-                        >{{ $socialIcons[$network] ?? \Illuminate\Support\Str::substr($network, 0, 2) }}</a>
+                        >@include('partials.social-icon', ['network' => $network])</a>
                     @endforeach
                 </div>
             @endif
@@ -845,5 +839,11 @@
         }
     })();
 </script>
+@if ($settings?->chat_enabled ?? true)
+    @include('partials.chat', [
+        'chatUrl' => route('menu.chat', ['slug' => $user->domain ?: $user->getKey()]),
+        'clearUrl' => route('menu.chat.clear', ['slug' => $user->domain ?: $user->getKey()]),
+    ])
+@endif
 </body>
 </html>

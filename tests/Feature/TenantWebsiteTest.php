@@ -585,12 +585,21 @@ class TenantWebsiteTest extends TestCase
 
         preg_match_all('/<a class="social-link"[^>]*>(.*?)<\/a>/s', $content, $matches);
 
-        $labels = array_map(
-            fn (string $label): string => trim(preg_replace('/\s+/', ' ', $label)),
+        $icons = array_map(
+            fn (string $icon): string => trim(preg_replace('/\s+/', ' ', $icon)),
             $matches[1],
         );
 
-        $this->assertSame(['f', 'ig', 'wa'], $labels);
+        $this->assertCount(3, $icons);
+
+        foreach ($icons as $icon) {
+            $this->assertStringContainsString('<svg', $icon);
+            $this->assertSame('', trim(strip_tags($icon)));
+        }
+
+        $this->assertStringContainsString('M9.101 23.691', $icons[0]);
+        $this->assertStringContainsString('M7.03.084', $icons[1]);
+        $this->assertStringContainsString('M17.472 14.382', $icons[2]);
     }
 
     public function test_the_quick_info_section_shows_the_restaurant_details(): void

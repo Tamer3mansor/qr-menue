@@ -35,13 +35,6 @@
         'instapay' => '🏦',
         'meeza' => '💳',
     ];
-
-    $socialIcons = [
-        'facebook' => 'f',
-        'instagram' => 'ig',
-        'whatsapp' => 'wa',
-        'tiktok' => 'tt',
-    ];
 @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -359,7 +352,7 @@
         .site-footer__social { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         .social-link {
             display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
-            background: rgb(255 255 255 / .1); font-size: 1.125rem;
+            background: rgb(255 255 255 / .1); font-size: 1.25rem; line-height: 1;
         }
         .site-footer__meta { display: flex; flex-direction: column; gap: 6px; font-size: .875rem; }
         .site-footer__meta a { color: var(--secondary); font-weight: 700; }
@@ -802,7 +795,7 @@
                 <div class="site-footer__social">
                     @foreach ($socialLinks as $network => $url)
                         <a class="social-link" href="{{ $url }}" rel="noopener" target="_blank" aria-label="{{ $network }}">
-                            {{ $socialIcons[$network] ?? \Illuminate\Support\Str::substr($network, 0, 2) }}
+                            @include('partials.social-icon', ['network' => $network])
                         </a>
                     @endforeach
                 </div>
@@ -1003,5 +996,11 @@
             });
         })();
     </script>
+@if ($settings?->chat_enabled ?? true)
+    @include('partials.chat', [
+        'chatUrl' => route('site.chat', ['slug' => $user->domain ?: $user->getKey()]),
+        'clearUrl' => route('site.chat.clear', ['slug' => $user->domain ?: $user->getKey()]),
+    ])
+@endif
 </body>
 </html>

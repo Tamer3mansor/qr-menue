@@ -531,6 +531,22 @@ class MenuPageTest extends TestCase
             ->assertSee('/storage/logos/menu-logo.png', escape: false);
     }
 
+    public function test_social_links_render_app_icons_instead_of_text(): void
+    {
+        $this->settings->update(['social_links' => [
+            'facebook' => 'https://facebook.com/kebab',
+            'instagram' => 'https://instagram.com/kebab',
+        ]]);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertSee('info-row info-row--social', false)
+            ->assertSee('M9.101 23.691', false)
+            ->assertSee('M7.03.084', false)
+            ->assertDontSee('>f</a>', false)
+            ->assertDontSee('>ig</a>', false);
+    }
+
     public function test_an_item_without_an_image_or_logo_shows_the_first_letter(): void
     {
         $this->settings->update(['logo' => null]);

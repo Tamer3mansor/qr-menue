@@ -43,7 +43,10 @@ class WebsiteSettingsPageTest extends TestCase
             ->assertSchemaComponentExists('seo_keywords')
             ->assertSchemaComponentExists('primary_color')
             ->assertSchemaComponentExists('secondary_color')
-            ->assertSchemaComponentExists('primary_font');
+            ->assertSchemaComponentExists('primary_font')
+            ->assertSchemaComponentExists('chat_enabled')
+            ->assertSchemaComponentExists('chat_avatar_type')
+            ->assertSchemaComponentExists('chat_welcome_message');
     }
 
     public function test_the_page_creates_a_settings_record_when_none_exists(): void
@@ -335,6 +338,24 @@ class WebsiteSettingsPageTest extends TestCase
             ->assertSuccessful()
             ->assertSee(WebsiteSettings::getNavigationLabel())
             ->assertSee(WebsiteSettings::getUrl(tenant: $this->tenant), escape: false);
+    }
+
+    public function test_the_chat_settings_are_saved(): void
+    {
+        Livewire::test(WebsiteSettings::class)
+            ->fillForm([
+                'chat_enabled' => false,
+                'chat_avatar_type' => 'chef',
+                'chat_welcome_message' => 'أهلاً بيك في مطعمنا!',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting = $this->tenant->refresh()->settings;
+
+        $this->assertFalse($setting->chat_enabled);
+        $this->assertSame('chef', $setting->chat_avatar_type);
+        $this->assertSame('أهلاً بيك في مطعمنا!', $setting->chat_welcome_message);
     }
 
     /**
