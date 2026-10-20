@@ -19,12 +19,12 @@ class GetMenuDataTool implements Tool
 
     public function description(): Stringable|string
     {
-        return 'يجيب كل المنتجات والأصناف والعروض المتاحة للمطعم.';
+        return 'يجيب كل المنتجات أو الخدمات والأصناف والعروض المتاحة للنشاط.';
     }
 
     /**
      * The tenant is bound to the tool by the agent, so the model cannot ask for
-     * another restaurant's menu.
+     * another business's menu.
      */
     public function handle(Request $request): Stringable|string
     {
@@ -59,7 +59,7 @@ class GetMenuDataTool implements Tool
         }
 
         $payload = [
-            'restaurant' => $tenant->settings?->restaurant_name ?: $tenant->name,
+            'business' => $tenant->settings?->restaurant_name ?: $tenant->name,
             'categories' => $categories->map(fn (Category $category): array => [
                 'name' => $category->name,
                 'items' => $category->items->map(fn (Item $item): array => [

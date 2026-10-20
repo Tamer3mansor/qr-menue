@@ -14,7 +14,7 @@ class GetRestaurantInfoTool implements Tool
 
     public function description(): Stringable|string
     {
-        return 'يجيب معلومات المطعم: ساعات العمل وطرق الدفع والتواصل.';
+        return 'يجيب معلومات النشاط: ساعات العمل وطرق الدفع والتواصل.';
     }
 
     public function handle(Request $request): Stringable|string

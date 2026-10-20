@@ -357,9 +357,8 @@ class WebsiteSettings extends Page
                             ->label('شكل الأيقونة')
                             ->options([
                                 'robot' => '🤖 روبوت',
-                                'chef' => '👨‍🍳 شيف',
                                 'star' => '⭐ نجمة',
-                                'logo' => '🖼️ لوجو المطعم',
+                                'logo' => '🖼️ لوجو النشاط',
                             ])
                             ->default('robot')
                             ->required(),

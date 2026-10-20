@@ -345,7 +345,7 @@ class WebsiteSettingsPageTest extends TestCase
         Livewire::test(WebsiteSettings::class)
             ->fillForm([
                 'chat_enabled' => false,
-                'chat_avatar_type' => 'chef',
+                'chat_avatar_type' => 'star',
                 'chat_welcome_message' => 'أهلاً بيك في مطعمنا!',
             ])
             ->call('save')
@@ -354,7 +354,7 @@ class WebsiteSettingsPageTest extends TestCase
         $setting = $this->tenant->refresh()->settings;
 
         $this->assertFalse($setting->chat_enabled);
-        $this->assertSame('chef', $setting->chat_avatar_type);
+        $this->assertSame('star', $setting->chat_avatar_type);
         $this->assertSame('أهلاً بيك في مطعمنا!', $setting->chat_welcome_message);
     }
 

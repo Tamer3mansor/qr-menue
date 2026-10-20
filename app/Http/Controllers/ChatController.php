@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Ai\Agents\MenuChatAgent;
-use App\Ai\Agents\RestaurantScopeGuard;
+use App\Ai\Agents\SiteScopeGuard;
 use App\Models\User;
 use App\Traits\ResolvesTenant;
 use Illuminate\Http\JsonResponse;
@@ -22,9 +22,9 @@ class ChatController extends Controller
     protected const MAX_HISTORY = 10;
 
     /**
-     * The fixed reply used when a visitor asks something outside the restaurant.
+     * The fixed reply used when a visitor asks something outside the business.
      */
-    protected const OFF_TOPIC_REPLY = 'أنا مساعد المطعم فقط، ومش هقدر أجاوب على السؤال ده. تقدر تسألني عن المنيو، الأسعار، العروض، أو ساعات العمل.';
+    protected const OFF_TOPIC_REPLY = 'أنا مساعد الموقع فقط، ومش هقدر أجاوب على السؤال ده. تقدر تسألني عن المنتجات، الأسعار، العروض، أو ساعات العمل.';
 
     public function chat(Request $request, string $slug): JsonResponse
     {
@@ -43,7 +43,7 @@ class ChatController extends Controller
         $sessionKey = $this->sessionKey($tenant);
 
         try {
-            $guard = (new RestaurantScopeGuard)->prompt($validated['message']);
+            $guard = (new SiteScopeGuard)->prompt($validated['message']);
 
             $inScope = $guard instanceof StructuredAgentResponse
                 && ($guard->structured['in_scope'] ?? false) === true;

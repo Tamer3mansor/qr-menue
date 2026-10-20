@@ -1,14 +1,13 @@
 @php
-    $chatAvatarType = in_array($settings?->chat_avatar_type, ['robot', 'chef', 'star', 'logo'], true)
+    $chatAvatarType = in_array($settings?->chat_avatar_type, ['robot', 'star', 'logo'], true)
         ? $settings->chat_avatar_type
         : 'robot';
     $chatLogo = $settings?->logo_url;
-    $chatName = $settings?->restaurant_name ?: 'المطعم';
+    $chatName = $settings?->restaurant_name ?: 'الموقع';
     $chatWelcome = filled($settings?->chat_welcome_message)
         ? $settings->chat_welcome_message
         : 'أهلاً! كيف أقدر أساعدك؟';
     $chatEmoji = match ($chatAvatarType) {
-        'chef' => '👨‍🍳',
         'star' => '⭐',
         default => '🤖',
     };
@@ -56,8 +55,8 @@
         </div>
 
         <div class="qr-chat-quick" id="qrChatQuick">
-            <button type="button" data-quick="إيه أحسن أكل؟">إيه أحسن أكل؟</button>
-            <button type="button" data-quick="العروض المتاحة">العروض المتاحة</button>
+            <button type="button" data-quick="إيه اللي متوفر عندكم؟">إيه اللي متوفر عندكم؟</button>
+            <button type="button" data-quick="العروض الحالية">العروض الحالية</button>
             <button type="button" data-quick="ساعات العمل">ساعات العمل</button>
         </div>
 

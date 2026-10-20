@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Ai\Agents\MenuChatAgent;
-use App\Ai\Agents\RestaurantScopeGuard;
+use App\Ai\Agents\SiteScopeGuard;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,7 +29,7 @@ class ChatControllerTest extends TestCase
             'restaurant_name' => 'مطعم الاختبار',
         ]);
 
-        RestaurantScopeGuard::fake(fn (): array => ['in_scope' => true]);
+        SiteScopeGuard::fake(fn (): array => ['in_scope' => true]);
     }
 
     public function test_the_chat_routes_are_registered(): void
@@ -145,7 +145,7 @@ class ChatControllerTest extends TestCase
 
     public function test_off_topic_questions_are_refused_without_calling_the_menu_agent(): void
     {
-        RestaurantScopeGuard::fake([['in_scope' => false]]);
+        SiteScopeGuard::fake([['in_scope' => false]]);
         MenuChatAgent::fake();
 
         $this->postJson(route('menu.chat', ['slug' => $this->tenant->getKey()]), [
@@ -154,7 +154,7 @@ class ChatControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'message',
-                'أنا مساعد المطعم فقط، ومش هقدر أجاوب على السؤال ده. تقدر تسألني عن المنيو، الأسعار، العروض، أو ساعات العمل.',
+                'أنا مساعد الموقع فقط، ومش هقدر أجاوب على السؤال ده. تقدر تسألني عن المنتجات، الأسعار، العروض، أو ساعات العمل.',
             )
             ->assertJsonPath('history', []);
 

@@ -48,7 +48,7 @@ class GetMenuDataToolTest extends TestCase
 
         $data = $this->menuData();
 
-        $this->assertSame('مطعم الاختبار', $data['restaurant']);
+        $this->assertSame('مطعم الاختبار', $data['business']);
         $this->assertCount(1, $data['categories']);
         $this->assertSame('الفطار', $data['categories'][0]['name']);
         $this->assertSame([
@@ -98,8 +98,8 @@ class GetMenuDataToolTest extends TestCase
 
     public function test_it_returns_only_active_offers_with_their_prices(): void
     {
-        $first = Item::factory()->create(['user_id' => $this->tenant->getKey(), 'title' => 'كشري وسط', 'price' => 30]);
-        $second = Item::factory()->create(['user_id' => $this->tenant->getKey(), 'title' => 'سلطة', 'price' => 40]);
+        $first = Item::factory()->create(['user_id' => $this->tenant->getKey(), 'title' => 'كشري وسط', 'price' => 30, 'sort_order' => 1]);
+        $second = Item::factory()->create(['user_id' => $this->tenant->getKey(), 'title' => 'سلطة', 'price' => 40, 'sort_order' => 2]);
 
         $offer = Offer::factory()->create([
             'user_id' => $this->tenant->getKey(),
