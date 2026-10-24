@@ -12,6 +12,14 @@ class GetRestaurantInfoTool implements Tool
 {
     public function __construct(protected int $tenantId) {}
 
+    /**
+     * A stable snake_case name, so the model calls exactly what is registered.
+     */
+    public function name(): string
+    {
+        return 'get_restaurant_info';
+    }
+
     public function description(): Stringable|string
     {
         return 'يجيب معلومات النشاط: ساعات العمل وطرق الدفع والتواصل.';

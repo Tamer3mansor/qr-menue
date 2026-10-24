@@ -135,6 +135,11 @@ class GetMenuDataToolTest extends TestCase
         $this->assertSame('لا توجد بيانات متاحة', (string) $tool->handle(new Request));
     }
 
+    public function test_it_exposes_the_tool_name_the_model_must_call(): void
+    {
+        $this->assertSame('get_menu_data', (new GetMenuDataTool(1))->name());
+    }
+
     /**
      * @return array<string, mixed>
      */
