@@ -60,7 +60,7 @@ class ChatController extends Controller
                 $settings?->restaurant_name ?: $tenant->name,
             );
 
-            $response = (string) $agent->prompt($validated['message']);
+            $response = $this->formatResponse((string) $agent->prompt($validated['message']));
         } catch (Throwable $exception) {
             report($exception);
 
@@ -112,5 +112,34 @@ class ChatController extends Controller
     protected function sessionKey(User $tenant): string
     {
         return "chat_{$tenant->getKey()}";
+    }
+
+    /**
+     * The assistant is asked for plain WhatsApp-style text, but models still
+     * slip markdown in, so the response is normalised before it reaches the UI.
+     */
+    protected function formatResponse(string $text): string
+    {
+        // Remove markdown formatting before the UI renders the reply as text.
+        $text = preg_replace('/\*\*(.*?)\*\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\*(.*?)\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/#{1,6}\s+/u', '', $text) ?? $text;
+        $text = preg_replace('/_{1,2}(.*?)_{1,2}/u', '$1', $text) ?? $text;
+        $text = preg_replace('/`(.*?)`/u', '$1', $text) ?? $text;
+
+        // Strip bullets and numbered lists, keeping each item on its own line.
+        $text = preg_replace('/^[\-\*•]\s+/mu', '', $text) ?? $text;
+        $text = preg_replace('/^\d+[\.\)]\s+/mu', '', $text) ?? $text;
+
+        $text = preg_replace('/\n{3,}/', "\n\n", $text) ?? $text;
+
+        // Arabic-Indic digits keep the reply consistent with the chat style.
+        $text = str_replace(
+            ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'],
+            $text,
+        );
+
+        return trim($text);
     }
 }

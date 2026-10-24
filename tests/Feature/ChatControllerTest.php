@@ -165,11 +165,13 @@ class ChatControllerTest extends TestCase
     {
         $this->get("/menu/{$this->tenant->getKey()}")
             ->assertOk()
-            ->assertSee('id="qrChat"', false);
+            ->assertSee('id="qrChat"', false)
+            ->assertSee('id="chatBtn"', false);
 
         $this->get("/site/{$this->tenant->getKey()}")
             ->assertOk()
-            ->assertSee('id="qrChat"', false);
+            ->assertSee('id="qrChat"', false)
+            ->assertSee('id="chatBtn"', false);
     }
 
     public function test_the_chat_widget_is_hidden_when_the_toggle_is_off(): void
@@ -178,6 +180,82 @@ class ChatControllerTest extends TestCase
 
         $this->get("/menu/{$this->tenant->getKey()}")
             ->assertOk()
-            ->assertDontSee('id="qrChat"', false);
+            ->assertDontSee('id="qrChat"', false)
+            ->assertDontSee('id="chatBtn"', false);
+    }
+
+    public function test_the_logo_avatar_is_rendered_with_the_saved_logo(): void
+    {
+        $this->settings->update([
+            'logo' => 'logos/brand.png',
+            'chat_avatar_type' => 'logo',
+        ]);
+
+        $this->get("/menu/{$this->tenant->getKey()}")
+            ->assertOk()
+            ->assertSee('data-type="logo"', false)
+            ->assertSee('/storage/logos/brand.png', false)
+            ->assertSee('class="robot-logo"', false);
+    }
+
+    public function test_markdown_is_stripped_from_the_assistant_reply(): void
+    {
+        MenuChatAgent::fake([
+            "**أهلاً** بيك\n\n- كشري ٤٥ جنيه\n- حواوشي ٥٠ جنيه\n\n# العروض",
+        ]);
+
+        $this->postJson(route('menu.chat', ['slug' => $this->tenant->getKey()]), [
+            'message' => 'عايز القائمة',
+        ])
+            ->assertOk()
+            ->assertJsonPath(
+                'message',
+                "أهلاً بيك\n\nكشري ٤٥ جنيه\nحواوشي ٥٠ جنيه\n\nالعروض",
+            );
+    }
+
+    public function test_bold_markdown_is_removed_from_the_reply(): void
+    {
+        MenuChatAgent::fake(['**كشري** و**حواوشي**']);
+
+        $this->postJson(route('menu.chat', ['slug' => $this->tenant->getKey()]), [
+            'message' => 'عايز القائمة',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'كشري وحواوشي');
+    }
+
+    public function test_english_digits_are_converted_to_arabic_digits(): void
+    {
+        MenuChatAgent::fake(['كشري وسط 45 جنيه، الإجمالي 115 جنيه']);
+
+        $this->postJson(route('menu.chat', ['slug' => $this->tenant->getKey()]), [
+            'message' => 'احسب الفاتورة',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'كشري وسط ٤٥ جنيه، الإجمالي ١١٥ جنيه');
+    }
+
+    public function test_bullet_points_are_removed_from_the_reply(): void
+    {
+        MenuChatAgent::fake(["- كشري وسط\n• حواوشي لحم\n* سلطة بلدي"]);
+
+        $this->postJson(route('menu.chat', ['slug' => $this->tenant->getKey()]), [
+            'message' => 'عايز القائمة',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', "كشري وسط\nحواوشي لحم\nسلطة بلدي");
+    }
+
+    public function test_the_agent_prompt_contains_invoice_and_suggestion_rules(): void
+    {
+        $instructions = (string) (new MenuChatAgent(1, 'مطعم الاختبار'))->instructions();
+
+        $this->assertStringContainsString('فاتورة', $instructions);
+        $this->assertStringContainsString('اقترح', $instructions);
+        $this->assertStringContainsString('ممنوع', $instructions);
+        $this->assertStringContainsString('خفيف', $instructions);
+        $this->assertStringContainsString('استمرار للمحادثة', $instructions);
+        $this->assertStringContainsString('getMenuData', $instructions);
     }
 }

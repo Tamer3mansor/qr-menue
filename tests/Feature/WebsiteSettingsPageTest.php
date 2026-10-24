@@ -45,6 +45,7 @@ class WebsiteSettingsPageTest extends TestCase
             ->assertSchemaComponentExists('secondary_color')
             ->assertSchemaComponentExists('primary_font')
             ->assertSchemaComponentExists('chat_enabled')
+            ->assertSchemaComponentExists('chat_avatar_preview')
             ->assertSchemaComponentExists('chat_avatar_type')
             ->assertSchemaComponentExists('chat_welcome_message');
     }
@@ -356,6 +357,20 @@ class WebsiteSettingsPageTest extends TestCase
         $this->assertFalse($setting->chat_enabled);
         $this->assertSame('star', $setting->chat_avatar_type);
         $this->assertSame('أهلاً بيك في مطعمنا!', $setting->chat_welcome_message);
+    }
+
+    public function test_every_chat_avatar_option_is_available(): void
+    {
+        $this->assertSame(
+            ['robot', 'chef', 'star', 'logo'],
+            array_keys(WebsiteSettings::chatAvatarOptions()),
+        );
+
+        Livewire::test(WebsiteSettings::class)
+            ->assertSchemaComponentExists(
+                'chat_avatar_type',
+                checkComponentUsing: fn ($component): bool => array_keys($component->getOptions()) === ['robot', 'chef', 'star', 'logo'],
+            );
     }
 
     /**

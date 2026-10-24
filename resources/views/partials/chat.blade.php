@@ -1,5 +1,5 @@
 @php
-    $chatAvatarType = in_array($settings?->chat_avatar_type, ['robot', 'star', 'logo'], true)
+    $chatAvatarType = in_array($settings?->chat_avatar_type, ['robot', 'chef', 'star', 'logo'], true)
         ? $settings->chat_avatar_type
         : 'robot';
     $chatLogo = $settings?->logo_url;
@@ -8,28 +8,20 @@
         ? $settings->chat_welcome_message
         : 'أهلاً! كيف أقدر أساعدك؟';
     $chatEmoji = match ($chatAvatarType) {
+        'chef' => '👨‍🍳',
         'star' => '⭐',
         default => '🤖',
     };
 @endphp
 
 <div id="qrChat" dir="rtl">
-    <button
-        type="button"
-        class="qr-chat-button"
-        id="qrChatButton"
-        aria-label="فتح المساعد الذكي"
-        aria-controls="qrChatWindow"
-        aria-expanded="false"
-    >
-        @if ($chatAvatarType === 'logo' && $chatLogo)
-            <img src="{{ $chatLogo }}" alt="" width="40" height="40" loading="lazy">
-        @else
-            <span aria-hidden="true">{{ $chatEmoji }}</span>
-        @endif
-
-        <span class="qr-chat-dot" id="qrChatDot" aria-hidden="true"></span>
-    </button>
+    <x-chat-robot
+        :primaryColor="$settings?->primary_color ?: '#1E3A2F'"
+        :secondaryColor="$settings?->secondary_color ?: '#8FAF8A'"
+        :logoUrl="$chatLogo"
+        :avatarType="$chatAvatarType"
+        :welcomeMessage="$chatWelcome"
+    />
 
     <section class="qr-chat-window" id="qrChatWindow" aria-label="المساعد الذكي" hidden>
         <header class="qr-chat-header">
@@ -85,10 +77,6 @@
         --qr-text: #1f2937;
         --qr-muted: #6b7280;
         --qr-border: #eceff3;
-        position: fixed;
-        inset-block-end: 24px;
-        inset-inline-start: 24px;
-        z-index: 1000;
         font-family: inherit;
     }
 
@@ -98,44 +86,11 @@
         box-sizing: border-box;
     }
 
-    #qrChat .qr-chat-button {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 60px;
-        height: 60px;
-        padding: 0;
-        border: 0;
-        border-radius: 50%;
-        background: var(--qr-accent);
-        color: var(--qr-accent-contrast);
-        font-size: 28px;
-        cursor: pointer;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, .25);
-        transition: transform .2s ease;
-    }
-
-    #qrChat .qr-chat-button:hover { transform: scale(1.08); }
-    #qrChat .qr-chat-button:focus-visible { outline: 3px solid var(--qr-accent); outline-offset: 3px; }
-    #qrChat .qr-chat-button img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-
-    #qrChat .qr-chat-dot {
-        position: absolute;
-        top: 2px;
-        inset-inline-end: 2px;
-        width: 12px;
-        height: 12px;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        background: #E8705A;
-        animation: qr-chat-pulse 2s infinite;
-    }
-
     #qrChat .qr-chat-window {
-        position: absolute;
-        inset-block-end: 76px;
-        inset-inline-start: 0;
+        position: fixed;
+        left: 24px;
+        bottom: 100px;
+        z-index: 999;
         display: flex;
         flex-direction: column;
         width: 320px;
@@ -314,19 +269,12 @@
 
     #qrChat .qr-chat-form button:disabled { opacity: .5; cursor: wait; }
 
-    @keyframes qr-chat-pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.3); opacity: .7; }
-    }
-
     @keyframes qr-chat-typing {
         0%, 60%, 100% { transform: translateY(0); }
         30% { transform: translateY(-6px); }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        #qrChat .qr-chat-button,
-        #qrChat .qr-chat-dot,
         #qrChat .qr-chat-typing span {
             animation: none;
             transition: none;
@@ -337,9 +285,9 @@
 <script>
     (() => {
         const root = document.getElementById('qrChat');
-        const button = document.getElementById('qrChatButton');
+        const button = document.getElementById('chatBtn');
         const windowEl = document.getElementById('qrChatWindow');
-        const dot = document.getElementById('qrChatDot');
+        const dot = document.getElementById('chatDot');
         const messages = document.getElementById('qrChatMessages');
         const quick = document.getElementById('qrChatQuick');
         const form = document.getElementById('qrChatForm');
@@ -389,17 +337,51 @@
             document.getElementById('qrChatTyping')?.remove();
         }
 
+        function positionWindow() {
+            const rect = button.getBoundingClientRect();
+            const width = Math.min(320, window.innerWidth - 32);
+            const height = Math.min(440, window.innerHeight - 32);
+            const left = Math.min(
+                Math.max(12, rect.left),
+                Math.max(12, window.innerWidth - width - 12),
+            );
+            const desiredBottom = window.innerHeight - rect.top + 12;
+            const maxBottom = Math.max(12, window.innerHeight - height - 12);
+            const bottom = Math.min(Math.max(12, desiredBottom), maxBottom);
+
+            windowEl.style.left = `${left}px`;
+            windowEl.style.bottom = `${bottom}px`;
+            windowEl.style.maxHeight = `${Math.max(220, window.innerHeight - bottom - 12)}px`;
+        }
+
         function setOpen(open) {
             isOpen = open;
+
+            if (open) {
+                positionWindow();
+            }
+
             windowEl.hidden = !open;
             button.setAttribute('aria-expanded', String(open));
-            dot.style.display = open ? 'none' : 'block';
+            button.classList.toggle('is-open', open);
+
+            if (dot) {
+                dot.style.display = open ? 'none' : 'block';
+            }
 
             if (open) {
                 input.focus();
                 scrollToBottom();
             }
         }
+
+        window.toggleChat = () => setOpen(!isOpen);
+
+        window.addEventListener('resize', () => {
+            if (isOpen) {
+                positionWindow();
+            }
+        });
 
         function lockSend(locked) {
             isBusy = locked;
@@ -447,7 +429,6 @@
             }
         }
 
-        button.addEventListener('click', () => setOpen(!isOpen));
         document.getElementById('qrChatClose')?.addEventListener('click', () => setOpen(false));
 
         document.getElementById('qrChatClear')?.addEventListener('click', async () => {

@@ -92,6 +92,21 @@ class WebsiteSettings extends Page
 
     public const SEO_DESCRIPTION_LIMIT = 160;
 
+    /**
+     * The avatar shapes the public chat button can use.
+     *
+     * @return array<string, string>
+     */
+    public static function chatAvatarOptions(): array
+    {
+        return [
+            'robot' => '🤖 روبوت (الافتراضي)',
+            'chef' => '👨‍🍳 شيف',
+            'star' => '⭐ نجمة',
+            'logo' => '🖼️ لوجو المطعم',
+        ];
+    }
+
     public function mount(): void
     {
         $setting = $this->setting();
@@ -267,10 +282,12 @@ class WebsiteSettings extends Page
                     ->schema([
                         ColorPicker::make('primary_color')
                             ->label('اللون الأساسي')
-                            ->hex(),
+                            ->hex()
+                            ->live(),
                         ColorPicker::make('secondary_color')
                             ->label('اللون الثانوي')
-                            ->hex(),
+                            ->hex()
+                            ->live(),
                         Select::make('primary_font')
                             ->label('الخط')
                             ->options(self::fontOptions())
@@ -352,16 +369,19 @@ class WebsiteSettings extends Page
                     ->schema([
                         Toggle::make('chat_enabled')
                             ->label('تفعيل المساعد الذكي')
-                            ->default(true),
+                            ->default(true)
+                            ->live(),
+                        Placeholder::make('chat_avatar_preview')
+                            ->label('معاينة الأيقونة')
+                            ->content(fn (Get $get): HtmlString => $this->chatAvatarPreview($get))
+                            ->columnSpanFull(),
                         Select::make('chat_avatar_type')
                             ->label('شكل الأيقونة')
-                            ->options([
-                                'robot' => '🤖 روبوت',
-                                'star' => '⭐ نجمة',
-                                'logo' => '🖼️ لوجو النشاط',
-                            ])
+                            ->options(self::chatAvatarOptions())
                             ->default('robot')
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->helperText('لو اخترت اللوجو، تأكد إن في لوجو محفوظ في إعدادات المطعم.'),
                         TextInput::make('chat_welcome_message')
                             ->label('رسالة الترحيب')
                             ->placeholder('أهلاً! كيف أقدر أساعدك؟')
@@ -370,6 +390,48 @@ class WebsiteSettings extends Page
                     ])
                     ->columns(1),
             ]);
+    }
+
+    /**
+     * A small, static reflection of the public chat button, using the colours
+     * and avatar type currently in the form.
+     */
+    protected function chatAvatarPreview(Get $get): HtmlString
+    {
+        $type = (string) ($get('chat_avatar_type') ?: 'robot');
+        $options = self::chatAvatarOptions();
+        $label = $options[$type] ?? $options['robot'];
+        $primary = $this->safeColor((string) ($get('primary_color') ?: ''), '#1E3A2F');
+        $secondary = $this->safeColor((string) ($get('secondary_color') ?: ''), '#8FAF8A');
+
+        $logo = $type === 'logo' ? $this->setting()->logo_url : null;
+
+        $icon = match ($type) {
+            'chef' => '👨‍🍳',
+            'star' => '⭐',
+            default => '🤖',
+        };
+
+        $inner = filled($logo)
+            ? '<img src="'.e($logo).'" alt="" style="width:100%;height:100%;object-fit:cover;">'
+            : '<span style="font-size:24px;line-height:1">'.$icon.'</span>';
+
+        return new HtmlString(<<<HTML
+            <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(0,0,0,.08);border-radius:12px;background:rgba(0,0,0,.02)">
+                <span style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;overflow:hidden;border-radius:50%;background:{$primary};border:3px solid {$secondary}">{$inner}</span>
+                <span style="font-size:13px;font-weight:600">{$label}</span>
+            </div>
+            HTML);
+    }
+
+    /**
+     * Only a hex colour is written into the preview's inline styles.
+     */
+    protected function safeColor(string $color, string $fallback): string
+    {
+        return preg_match('/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color) === 1
+            ? $color
+            : $fallback;
     }
 
     /**
