@@ -257,5 +257,8 @@ class ChatControllerTest extends TestCase
         $this->assertStringContainsString('خفيف', $instructions);
         $this->assertStringContainsString('استمرار للمحادثة', $instructions);
         $this->assertStringContainsString('getMenuData', $instructions);
+        $this->assertStringContainsString('قاعدة ذهبية', $instructions);
+        $this->assertStringContainsString('3 أصناف مميزة', $instructions);
+        $this->assertStringContainsString('قبل أي رد', $instructions);
     }
 }
