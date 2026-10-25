@@ -59,6 +59,11 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->hasMany(Offer::class);
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function qrCode(): HasOne
     {
         return $this->hasOne(QrCode::class);

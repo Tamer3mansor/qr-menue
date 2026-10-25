@@ -129,6 +129,22 @@ class MenuPageTest extends TestCase
             ->assertSee('Souvlaki');
     }
 
+    public function test_the_menu_page_has_no_cart_controls(): void
+    {
+        $category = $this->category();
+        $this->item($category, ['title' => 'CartFreeKebab']);
+
+        $this->get("/menu/{$this->user->id}")
+            ->assertOk()
+            ->assertDontSee('add-to-cart-btn', false)
+            ->assertDontSee('أضف للسلة')
+            ->assertDontSee('cart-fab', false)
+            ->assertDontSee('id="cartModal"', false)
+            ->assertDontSee('id="orderModal"', false)
+            ->assertDontSee('id="successModal"', false)
+            ->assertDontSee('id="trackSection"', false);
+    }
+
     public function test_an_unknown_slug_returns_a_404(): void
     {
         $this->get('/menu/does-not-exist')->assertNotFound();

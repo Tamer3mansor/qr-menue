@@ -3,6 +3,7 @@
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WebsiteController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,20 @@ Route::post('/site/{slug}/chat', [ChatController::class, 'chat'])
     ->middleware('throttle:20,1')
     ->name('site.chat');
 Route::post('/site/{slug}/chat/clear', [ChatController::class, 'clearChat'])->name('site.chat.clear');
+
+/*
+| Guests order without an account, so the cart lives in the session and every
+| action resolves the tenant from the same slug the menu uses.
+*/
+foreach (['menu', 'site'] as $prefix) {
+    Route::prefix($prefix)->name("{$prefix}.")->group(function (): void {
+        Route::post('/{slug}/cart/add', [OrderController::class, 'addToCart'])->name('cart.add');
+        Route::post('/{slug}/cart/update', [OrderController::class, 'updateCart'])->name('cart.update');
+        Route::get('/{slug}/cart', [OrderController::class, 'getCart'])->name('cart');
+        Route::post('/{slug}/order/submit', [OrderController::class, 'submitOrder'])->name('order.submit');
+        Route::get('/{slug}/order/track', [OrderController::class, 'trackOrder'])->name('order.track');
+    });
+}
 
 /*
 | Tenant websites used to be served from a subdomain, so demo.example.com

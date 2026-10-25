@@ -20,6 +20,7 @@
         ->max(fn ($item) => (float) $item->price);
 
     $menuUrl = route('menu.show', $user->domain ?: $user->getKey());
+    $tenantSlug = $user->domain ?: $user->getKey();
 
     $isOpenNow = $settings?->isOpenNow();
     $todayHours = $settings?->todayWorkingHours();
@@ -41,6 +42,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDescription }}">
@@ -207,7 +209,7 @@
             background: var(--card-bg); border: 1px solid var(--border);
             border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
             display: flex; flex-direction: column;
-            max-height: 300px;
+            max-height: 380px;
         }
         .card__media { position: relative; height: 180px; background: var(--bg); }
         .card__media img { width: 100%; height: 180px; object-fit: cover; }
@@ -339,6 +341,217 @@
 
         .empty { color: var(--muted); text-align: center; padding: 26px 0; }
         .is-hidden { display: none !important; }
+
+        /* Cart controls */
+        .item-actions {
+            display: flex; justify-content: flex-end; align-items: center;
+            margin-top: auto; padding-top: 10px;
+        }
+        .item-actions .qty-controls { display: none; }
+        .item-actions.is-in-cart .qty-controls { display: inline-flex; }
+        .item-actions.is-in-cart .add-to-cart-btn { display: none; }
+
+        .add-to-cart-btn {
+            min-height: 44px; padding: 0 16px;
+            border: 0; border-radius: 999px;
+            background: var(--primary); color: #fff;
+            font: inherit; font-size: .875rem; font-weight: 700;
+            cursor: pointer;
+        }
+
+        .qty-controls {
+            display: inline-flex; align-items: center; gap: 2px;
+            border: 1px solid var(--primary); border-radius: 999px; overflow: hidden;
+        }
+
+        .qty-btn {
+            min-width: 44px; min-height: 44px;
+            border: 0; background: var(--primary); color: #fff;
+            font: inherit; font-size: 1.25rem; line-height: 1;
+            cursor: pointer;
+        }
+
+        .qty-value {
+            min-width: 40px; text-align: center;
+            color: var(--primary); font-weight: 700;
+        }
+
+        /* Floating cart button */
+        .cart-fab {
+            position: fixed; inset-inline-end: 18px; bottom: 20px; z-index: 40;
+            display: inline-flex; align-items: center; gap: 8px;
+            min-height: 56px; padding: 0 18px;
+            border: 0; border-radius: 999px;
+            background: var(--primary); color: #fff;
+            font: inherit; font-size: 1rem; font-weight: 700;
+            box-shadow: 0 10px 30px rgb(0 0 0 / .25); cursor: pointer;
+        }
+        .cart-fab[hidden] { display: none; }
+
+        /* Cart, order, and success modals */
+        .cart-modal,
+        .order-modal,
+        .success-modal {
+            position: fixed; inset: 0; z-index: 1000;
+            display: none; padding: 16px; background: rgb(0 0 0 / .5);
+        }
+        .cart-modal.is-open,
+        .order-modal.is-open,
+        .success-modal.is-open { display: flex; }
+        .cart-modal { align-items: flex-end; justify-content: center; }
+
+        .cart-sheet {
+            display: flex; flex-direction: column;
+            width: 100%; max-width: 640px; max-height: 88vh;
+            overflow: hidden; border-radius: 20px 20px 0 0;
+            background: #fff; animation: cart-slide-up .25s ease-out;
+        }
+
+        .cart-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px 8px; border-bottom: 1px solid var(--border);
+        }
+        .cart-header h3 { margin: 0; font-size: 1.125rem; }
+
+        .icon-btn {
+            min-width: 44px; min-height: 44px;
+            border: 0; background: transparent; color: var(--muted);
+            font-size: 1.25rem; cursor: pointer;
+        }
+
+        .cart-items { flex: 1 1 auto; overflow-y: auto; padding: 6px 18px; }
+        .cart-empty { padding: 28px 0; text-align: center; color: var(--muted); }
+
+        .cart-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 0; border-bottom: 1px solid #eef0f3;
+        }
+        .cart-item:last-child { border-bottom: 0; }
+
+        .cart-item-image {
+            display: grid; place-items: center;
+            width: 52px; height: 52px; flex: 0 0 auto;
+            object-fit: cover; border-radius: 10px;
+            background: var(--bg); font-size: 1.25rem;
+        }
+
+        .cart-item-body { flex: 1 1 auto; min-width: 0; }
+        .cart-item-name { margin: 0; font-size: .875rem; font-weight: 700; }
+        .cart-item-price { margin: 2px 0 0; font-size: .8125rem; color: var(--muted); }
+
+        .cart-footer { padding: 12px 18px 18px; border-top: 1px solid var(--border); }
+
+        .cart-total {
+            display: flex; justify-content: space-between;
+            margin-bottom: 10px; font-size: 1rem; font-weight: 700;
+        }
+
+        .checkout-btn {
+            width: 100%; min-height: 48px;
+            border: 0; border-radius: 12px;
+            background: var(--primary); color: #fff;
+            font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+        }
+        .checkout-btn:disabled { opacity: .6; cursor: wait; }
+
+        .order-modal,
+        .success-modal { align-items: center; justify-content: center; }
+
+        .modal-card,
+        .success-card {
+            width: 100%; max-width: 420px; padding: 20px;
+            border-radius: 20px; background: #fff;
+            animation: modal-pop .2s ease-out;
+        }
+        .modal-card h3 { margin: 0 0 14px; font-size: 1.125rem; }
+
+        .field { display: block; margin-bottom: 10px; }
+
+        .field input,
+        .field textarea,
+        .track-form input {
+            width: 100%; min-height: 48px; padding: 12px 14px;
+            border: 1px solid var(--border); border-radius: 12px;
+            background: #fff; font: inherit; font-size: .9375rem;
+        }
+        .field textarea { min-height: 90px; resize: vertical; }
+
+        .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .modal-actions .checkout-btn { flex: 1 1 auto; }
+
+        .secondary-btn {
+            min-height: 48px; padding: 0 16px;
+            border: 1px solid var(--border); border-radius: 12px;
+            background: #fff; color: var(--text);
+            font: inherit; font-weight: 700; cursor: pointer;
+        }
+
+        .form-error { margin: 10px 0 0; color: #b91c1c; font-size: .8125rem; }
+
+        .success-card { max-width: 380px; text-align: center; }
+
+        .success-icon {
+            display: grid; place-items: center;
+            width: 64px; height: 64px; margin: 0 auto 12px;
+            border-radius: 50%; background: #e8f7ee; color: #17663a;
+            font-size: 2rem; font-weight: 700;
+        }
+        .success-card h3 { margin: 0 0 8px; }
+        .success-card p { margin: 4px 0; font-size: .875rem; }
+        .track-hint { margin-top: 12px !important; color: var(--muted); }
+
+        /* Track order */
+        .track-section {
+            margin-top: 28px; padding: 16px;
+            border-radius: 16px; background: #fff;
+            box-shadow: 0 1px 2px rgb(0 0 0 / .05);
+        }
+        .track-form { display: flex; gap: 8px; }
+        .track-form input { flex: 1 1 auto; }
+        .track-form button {
+            min-height: 48px; padding: 0 18px;
+            border: 0; border-radius: 12px;
+            background: var(--primary); color: #fff;
+            font: inherit; font-weight: 700; cursor: pointer;
+        }
+        .track-result { margin-top: 12px; }
+        .track-card { padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+        .track-status {
+            display: inline-flex; padding: 4px 10px; border-radius: 999px;
+            background: var(--bg); color: var(--primary);
+            font-size: .8125rem; font-weight: 700;
+        }
+        .track-items { margin: 10px 0 0; padding: 0; list-style: none; font-size: .875rem; }
+        .track-items li {
+            display: flex; justify-content: space-between; gap: 12px;
+            padding: 4px 0; border-bottom: 1px dashed #eef0f3;
+        }
+        .track-items li:last-child { border-bottom: 0; }
+        .track-total { display: flex; justify-content: space-between; margin-top: 10px; font-weight: 700; }
+        .track-error { color: #b91c1c; font-size: .875rem; }
+
+        .copy-toast {
+            position: fixed; left: 50%; bottom: 24px; z-index: 1100;
+            padding: 8px 16px; border-radius: 999px;
+            background: #111827; color: #fff;
+            font-size: .8125rem; font-weight: 600;
+            opacity: 0; pointer-events: none;
+            transform: translate(-50%, 12px);
+            transition: opacity .2s ease, transform .2s ease;
+        }
+        .copy-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+        body.modal-open { overflow: hidden; }
+
+        @keyframes cart-slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        @keyframes modal-pop {
+            from { opacity: 0; transform: translateY(12px) scale(.98); }
+            to { opacity: 1; transform: none; }
+        }
 
         /* Branches */
         .branch__name { margin: 0 0 4px; font-size: 1.0625rem; }
@@ -591,7 +804,7 @@
                             @php
                                 $offer = $offersByItem->get($item->getKey());
                             @endphp
-                            <article class="card card--featured" data-reveal>
+                            <article class="card card--featured" data-reveal data-item-id="{{ $item->getKey() }}">
                                 <div class="card__media">
                                     @if (filled($item->image_url))
                                         <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
@@ -610,6 +823,34 @@
                                                 {{ number_format((float) $item->price, 2) }} {{ $currency }}
                                             @endif
                                         </p>
+                                    </div>
+                                </div>
+                                <div class="card__body">
+                                    <div
+                                        class="item-actions {{ isset($cartItems[$item->getKey()]) ? 'is-in-cart' : '' }}"
+                                        data-item-id="{{ $item->getKey() }}"
+                                    >
+                                        <div class="qty-controls">
+                                            <button
+                                                type="button"
+                                                class="qty-btn"
+                                                onclick="updateQty({{ $item->getKey() }}, -1)"
+                                                aria-label="تقليل كمية {{ $item->title }}"
+                                            >−</button>
+                                            <span class="qty-value">{{ $cartItems[$item->getKey()]['quantity'] ?? 0 }}</span>
+                                            <button
+                                                type="button"
+                                                class="qty-btn"
+                                                onclick="updateQty({{ $item->getKey() }}, 1)"
+                                                aria-label="زيادة كمية {{ $item->title }}"
+                                            >+</button>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="add-to-cart-btn"
+                                            onclick="addToCart({{ $item->getKey() }})"
+                                        >+ أضف للسلة</button>
                                     </div>
                                 </div>
                             </article>
@@ -689,6 +930,33 @@
                                             @else
                                                 <span class="price">{{ number_format((float) $item->price, 2) }} {{ $currency }}</span>
                                             @endif
+                                        </div>
+
+                                        <div
+                                            class="item-actions {{ isset($cartItems[$item->getKey()]) ? 'is-in-cart' : '' }}"
+                                            data-item-id="{{ $item->getKey() }}"
+                                        >
+                                            <div class="qty-controls">
+                                                <button
+                                                    type="button"
+                                                    class="qty-btn"
+                                                    onclick="updateQty({{ $item->getKey() }}, -1)"
+                                                    aria-label="تقليل كمية {{ $item->title }}"
+                                                >−</button>
+                                                <span class="qty-value">{{ $cartItems[$item->getKey()]['quantity'] ?? 0 }}</span>
+                                                <button
+                                                    type="button"
+                                                    class="qty-btn"
+                                                    onclick="updateQty({{ $item->getKey() }}, 1)"
+                                                    aria-label="زيادة كمية {{ $item->title }}"
+                                                >+</button>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="add-to-cart-btn"
+                                                onclick="addToCart({{ $item->getKey() }})"
+                                            >+ أضف للسلة</button>
                                         </div>
                                     </div>
                                 </article>
@@ -780,6 +1048,28 @@
                 </div>
             </section>
         @endif
+
+        <section class="section" id="trackSection" aria-label="تتبع الطلب">
+            <div class="container">
+                <h2 class="section-title">تتبع طلبك</h2>
+                <p class="section-lead">أدخل رقم الطلب لمعرفة حالته.</p>
+
+                <div class="track-section">
+                    <div class="track-form">
+                        <input
+                            id="trackNumber"
+                            type="text"
+                            placeholder="رقم الطلب مثلاً: ORD-XXXXXXXX"
+                            aria-label="رقم الطلب"
+                            autocomplete="off"
+                        >
+                        <button type="button" onclick="trackOrder()">بحث</button>
+                    </div>
+
+                    <div id="trackResult" class="track-result" hidden></div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <footer class="site-footer">
@@ -821,6 +1111,76 @@
             </div>
         </div>
     </footer>
+
+    <button
+        type="button"
+        id="cartFab"
+        class="cart-fab"
+        onclick="openCartTab()"
+        aria-label="فتح السلة"
+        @if ($cart['count'] === 0) hidden @endif
+    >
+        <span aria-hidden="true">🛒</span>
+        <span id="cartCount">{{ $cart['count'] }}</span>
+    </button>
+
+    <div id="cartModal" class="cart-modal" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
+        <div class="cart-sheet">
+            <div class="cart-header">
+                <h3 id="cartTitle">طلبك</h3>
+                <button type="button" class="icon-btn" onclick="closeCart()" aria-label="إغلاق السلة">✕</button>
+            </div>
+
+            <div id="cartItems" class="cart-items"></div>
+
+            <div class="cart-footer">
+                <div class="cart-total">
+                    <span>الإجمالي</span>
+                    <span><span id="cartTotal">{{ number_format($cart['total'], 2) }}</span> {{ $currency }}</span>
+                </div>
+                <button type="button" onclick="showOrderForm()" class="checkout-btn">تأكيد الطلب</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderModal" class="order-modal" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+        <div class="modal-card">
+            <h3 id="orderTitle">بيانات الطلب</h3>
+
+            <label class="field">
+                <input id="customerName" type="text" placeholder="اسمك" aria-label="اسمك" autocomplete="name" maxlength="100">
+            </label>
+
+            <label class="field">
+                <input id="customerPhone" type="tel" placeholder="رقم تليفونك" aria-label="رقم تليفونك" autocomplete="tel" maxlength="20">
+            </label>
+
+            <label class="field">
+                <textarea id="orderNotes" placeholder="ملاحظات (اختياري)" aria-label="ملاحظات" maxlength="500"></textarea>
+            </label>
+
+            <p id="orderError" class="form-error" hidden></p>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" onclick="closeOrderForm()">إلغاء</button>
+                <button type="button" id="submitOrderBtn" class="checkout-btn" onclick="submitOrder()">إرسال الطلب</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="successModal" class="success-modal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+        <div class="success-card">
+            <div class="success-icon" aria-hidden="true">✓</div>
+            <h3 id="successTitle">تم استلام طلبك!</h3>
+            <p>رقم طلبك: <strong id="orderNumber"></strong></p>
+            <p id="successName"></p>
+            <p id="successPhone"></p>
+            <p class="track-hint">احتفظ برقم الطلب لمتابعة حالته</p>
+            <button type="button" class="checkout-btn" onclick="showTrackForm()">تتبع طلبك</button>
+        </div>
+    </div>
+
+    <div class="copy-toast" id="copy-toast" role="status" aria-live="polite"></div>
 
     <script>
         function toggleNav() {
@@ -994,6 +1354,473 @@
                     toggleNav();
                 }
             });
+        })();
+    </script>
+
+    <script>
+        window.siteOrder = {
+            urls: @js([
+                'add' => route('site.cart.add', ['slug' => $tenantSlug]),
+                'update' => route('site.cart.update', ['slug' => $tenantSlug]),
+                'show' => route('site.cart', ['slug' => $tenantSlug]),
+                'submit' => route('site.order.submit', ['slug' => $tenantSlug]),
+                'track' => route('site.order.track', ['slug' => $tenantSlug]),
+            ]),
+            currency: @js($currency),
+            cart: @js($cart),
+        };
+    </script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var config = window.siteOrder || {
+                urls: {},
+                currency: '',
+                cart: { items: {}, total: 0, count: 0 },
+            };
+
+            var cart = config.cart || { items: {}, total: 0, count: 0 };
+            var lastOrderNumber = '';
+            var toastTimer;
+
+            var csrf = document.querySelector('meta[name="csrf-token"]');
+            csrf = csrf ? csrf.getAttribute('content') : '';
+
+            function money(value) {
+                return Number(value || 0).toFixed(2);
+            }
+
+            function make(tag, className, text) {
+                var node = document.createElement(tag);
+
+                if (className) {
+                    node.className = className;
+                }
+
+                if (text !== undefined) {
+                    node.textContent = text;
+                }
+
+                return node;
+            }
+
+            function showToast(message) {
+                var toast = document.getElementById('copy-toast');
+
+                if (!toast) {
+                    return;
+                }
+
+                toast.textContent = message;
+                toast.classList.add('is-visible');
+
+                window.clearTimeout(toastTimer);
+                toastTimer = window.setTimeout(function () {
+                    toast.classList.remove('is-visible');
+                }, 2200);
+            }
+
+            function errorMessage(payload, fallback) {
+                if (payload && payload.message) {
+                    return payload.message;
+                }
+
+                if (payload && payload.errors) {
+                    var first = Object.values(payload.errors)[0];
+
+                    if (Array.isArray(first) && first.length > 0) {
+                        return first[0];
+                    }
+                }
+
+                return fallback;
+            }
+
+            async function request(url, options) {
+                var settings = options || {};
+                var headers = {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                };
+
+                if (settings.body) {
+                    headers['Content-Type'] = 'application/json';
+                }
+
+                var response = await fetch(url, {
+                    method: settings.method || 'GET',
+                    headers: headers,
+                    body: settings.body,
+                    credentials: 'same-origin',
+                });
+
+                var payload = {};
+
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = {};
+                }
+
+                if (!response.ok) {
+                    throw new Error(errorMessage(payload, 'حدث خطأ، حاول مرة أخرى.'));
+                }
+
+                return payload;
+            }
+
+            function findLine(itemId) {
+                return (cart.items || {})[String(itemId)] || null;
+            }
+
+            function renderCartItems() {
+                var container = document.getElementById('cartItems');
+                var lines = Object.values(cart.items || {});
+
+                container.replaceChildren();
+
+                if (lines.length === 0) {
+                    container.appendChild(make('p', 'cart-empty', 'السلة فارغة، اختر بعض الأصناف أولاً.'));
+                    return;
+                }
+
+                lines.forEach(function (line) {
+                    var row = make('div', 'cart-item');
+
+                    if (line.image) {
+                        var image = document.createElement('img');
+
+                        image.className = 'cart-item-image';
+                        image.src = line.image;
+                        image.alt = line.name;
+                        image.loading = 'lazy';
+                        row.appendChild(image);
+                    } else {
+                        row.appendChild(make('span', 'cart-item-image', '🍽️'));
+                    }
+
+                    var body = make('div', 'cart-item-body');
+
+                    body.appendChild(make('p', 'cart-item-name', line.name));
+                    body.appendChild(make(
+                        'p',
+                        'cart-item-price',
+                        money(line.price) + ' ' + config.currency + ' × ' + line.quantity
+                    ));
+
+                    row.appendChild(body);
+
+                    var controls = make('div', 'qty-controls');
+                    var minus = make('button', 'qty-btn', '−');
+
+                    minus.type = 'button';
+                    minus.setAttribute('aria-label', 'تقليل الكمية');
+                    minus.addEventListener('click', function () {
+                        updateQty(line.id, -1);
+                    });
+
+                    var plus = make('button', 'qty-btn', '+');
+
+                    plus.type = 'button';
+                    plus.setAttribute('aria-label', 'زيادة الكمية');
+                    plus.addEventListener('click', function () {
+                        updateQty(line.id, 1);
+                    });
+
+                    controls.appendChild(minus);
+                    controls.appendChild(make('span', 'qty-value', String(line.quantity)));
+                    controls.appendChild(plus);
+
+                    row.appendChild(controls);
+                    container.appendChild(row);
+                });
+            }
+
+            function renderCart() {
+                var count = Number(cart.count || 0);
+                var total = Number(cart.total || 0);
+
+                document.getElementById('cartCount').textContent = String(count);
+                document.getElementById('cartFab').hidden = count === 0;
+                document.getElementById('cartTotal').textContent = money(total);
+
+                document.querySelectorAll('.item-actions[data-item-id]').forEach(function (actions) {
+                    var line = findLine(actions.getAttribute('data-item-id'));
+                    var value = actions.querySelector('.qty-value');
+
+                    actions.classList.toggle('is-in-cart', Boolean(line));
+
+                    if (value) {
+                        value.textContent = line ? String(line.quantity) : '0';
+                    }
+                });
+
+                renderCartItems();
+            }
+
+            async function refreshCart() {
+                cart = await request(config.urls.show);
+                renderCart();
+            }
+
+            async function addToCart(itemId) {
+                try {
+                    var data = await request(config.urls.add, {
+                        method: 'POST',
+                        body: JSON.stringify({ item_id: itemId }),
+                    });
+
+                    await refreshCart();
+                    showToast(data.message || 'تم الإضافة');
+                } catch (error) {
+                    showToast(error.message);
+                }
+            }
+
+            async function setQuantity(itemId, quantity) {
+                try {
+                    var data = await request(config.urls.update, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            item_id: itemId,
+                            quantity: Math.max(0, quantity),
+                        }),
+                    });
+
+                    cart = data.cart || cart;
+                    renderCart();
+                } catch (error) {
+                    showToast(error.message);
+                }
+            }
+
+            function updateQty(itemId, delta) {
+                var line = findLine(itemId);
+
+                if (!line) {
+                    return;
+                }
+
+                return setQuantity(itemId, Number(line.quantity) + delta);
+            }
+
+            function openModal(modal) {
+                modal.classList.add('is-open');
+                document.body.classList.add('modal-open');
+            }
+
+            function closeModal(modal) {
+                modal.classList.remove('is-open');
+
+                if (!document.querySelector('.cart-modal.is-open, .order-modal.is-open, .success-modal.is-open')) {
+                    document.body.classList.remove('modal-open');
+                }
+            }
+
+            function openCartTab() {
+                renderCart();
+                openModal(document.getElementById('cartModal'));
+            }
+
+            function closeCart() {
+                closeModal(document.getElementById('cartModal'));
+            }
+
+            function showOrderForm() {
+                if (Object.keys(cart.items || {}).length === 0) {
+                    showToast('السلة فارغة، أضف أصنافاً أولاً.');
+                    return;
+                }
+
+                closeCart();
+
+                var error = document.getElementById('orderError');
+
+                error.hidden = true;
+                error.textContent = '';
+
+                openModal(document.getElementById('orderModal'));
+                document.getElementById('customerName').focus();
+            }
+
+            function closeOrderForm() {
+                closeModal(document.getElementById('orderModal'));
+            }
+
+            function showOrderError(message) {
+                var error = document.getElementById('orderError');
+
+                error.textContent = message;
+                error.hidden = false;
+            }
+
+            async function submitOrder() {
+                var name = document.getElementById('customerName').value.trim();
+                var phone = document.getElementById('customerPhone').value.trim();
+                var notes = document.getElementById('orderNotes').value.trim();
+                var button = document.getElementById('submitOrderBtn');
+
+                if (!name || !phone) {
+                    showOrderError('يرجى إدخال الاسم ورقم الهاتف.');
+
+                    return;
+                }
+
+                button.disabled = true;
+
+                try {
+                    var data = await request(config.urls.submit, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            customer_name: name,
+                            customer_phone: phone,
+                            notes: notes || null,
+                        }),
+                    });
+
+                    lastOrderNumber = data.order_number;
+
+                    document.getElementById('orderNumber').textContent = data.order_number;
+                    document.getElementById('successName').textContent = data.customer_name;
+                    document.getElementById('successPhone').textContent = data.customer_phone;
+
+                    cart = { items: {}, total: 0, count: 0 };
+                    renderCart();
+
+                    document.getElementById('customerName').value = '';
+                    document.getElementById('customerPhone').value = '';
+                    document.getElementById('orderNotes').value = '';
+
+                    closeOrderForm();
+                    openModal(document.getElementById('successModal'));
+                } catch (error) {
+                    showOrderError(error.message);
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            function closeSuccess() {
+                closeModal(document.getElementById('successModal'));
+            }
+
+            function showTrackForm() {
+                closeSuccess();
+
+                var input = document.getElementById('trackNumber');
+
+                if (!input.value) {
+                    input.value = lastOrderNumber;
+                }
+
+                document.getElementById('trackSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                window.setTimeout(function () {
+                    input.focus({ preventScroll: true });
+                }, 300);
+            }
+
+            function renderTrackResult(order) {
+                var container = document.getElementById('trackResult');
+                var card = make('div', 'track-card');
+
+                card.appendChild(make('p', 'track-status', order.status_label || order.status));
+                card.appendChild(make('p', null, 'اسم العميل: ' + order.customer_name));
+
+                var list = make('ul', 'track-items');
+
+                (order.items || []).forEach(function (item) {
+                    var row = make('li');
+
+                    row.appendChild(make('span', null, item.name + ' × ' + item.quantity));
+                    row.appendChild(make('span', null, money(item.subtotal) + ' ' + config.currency));
+                    list.appendChild(row);
+                });
+
+                card.appendChild(list);
+
+                var total = make('div', 'track-total');
+
+                total.appendChild(make('span', null, 'الإجمالي'));
+                total.appendChild(make('span', null, money(order.total) + ' ' + config.currency));
+                card.appendChild(total);
+
+                container.replaceChildren(card);
+                container.hidden = false;
+            }
+
+            function renderTrackError(message) {
+                var container = document.getElementById('trackResult');
+
+                container.replaceChildren(make('p', 'track-error', message));
+                container.hidden = false;
+            }
+
+            async function trackOrder() {
+                var input = document.getElementById('trackNumber');
+                var orderNumber = input.value.trim();
+
+                if (!orderNumber) {
+                    renderTrackError('يرجى إدخال رقم الطلب.');
+
+                    return;
+                }
+
+                try {
+                    var order = await request(config.urls.track + '?order_number=' + encodeURIComponent(orderNumber));
+
+                    renderTrackResult(order);
+                } catch (error) {
+                    renderTrackError(error.message);
+                }
+            }
+
+            var cartModal = document.getElementById('cartModal');
+            var orderModal = document.getElementById('orderModal');
+            var successModal = document.getElementById('successModal');
+
+            [cartModal, orderModal, successModal].forEach(function (modal) {
+                modal.addEventListener('click', function (event) {
+                    if (event.target !== modal) {
+                        return;
+                    }
+
+                    if (modal === cartModal) {
+                        closeCart();
+                    } else if (modal === orderModal) {
+                        closeOrderForm();
+                    } else {
+                        closeSuccess();
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key !== 'Escape') {
+                    return;
+                }
+
+                if (cartModal.classList.contains('is-open')) {
+                    closeCart();
+                } else if (orderModal.classList.contains('is-open')) {
+                    closeOrderForm();
+                } else if (successModal.classList.contains('is-open')) {
+                    closeSuccess();
+                }
+            });
+
+            window.addToCart = addToCart;
+            window.updateQty = updateQty;
+            window.openCartTab = openCartTab;
+            window.closeCart = closeCart;
+            window.showOrderForm = showOrderForm;
+            window.submitOrder = submitOrder;
+            window.showTrackForm = showTrackForm;
+            window.trackOrder = trackOrder;
+
+            renderCart();
         })();
     </script>
 @if ($settings?->chat_enabled ?? true)

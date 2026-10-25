@@ -114,6 +114,38 @@ class TenantWebsiteTest extends TestCase
             ->assertDontSee('أبرز منتجاتنا');
     }
 
+    public function test_the_website_renders_the_cart_controls(): void
+    {
+        $tenant = $this->tenant();
+        $category = Category::factory()->for($tenant)->create();
+
+        $featured = Item::factory()->for($tenant)->hasAttached($category)->create([
+            'title' => 'مميز للسلة',
+            'is_featured' => true,
+            'is_available' => true,
+            'price' => 100,
+        ]);
+
+        Item::factory()->for($tenant)->hasAttached($category)->create([
+            'title' => 'عادي للسلة',
+            'is_available' => true,
+            'price' => 100,
+        ]);
+
+        $content = $this->get('/site/demo')->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-item-id="'.$featured->getKey().'"', $content);
+        $this->assertGreaterThanOrEqual(3, substr_count($content, 'add-to-cart-btn'));
+        $this->assertStringContainsString('أضف للسلة', $content);
+        $this->assertStringContainsString('id="cartFab"', $content);
+        $this->assertStringContainsString('id="cartModal"', $content);
+        $this->assertStringContainsString('id="orderModal"', $content);
+        $this->assertStringContainsString('id="successModal"', $content);
+        $this->assertStringContainsString('id="trackSection"', $content);
+        $this->assertStringContainsString('window.siteOrder', $content);
+        $this->assertStringNotContainsString('window.menuOrder', $content);
+    }
+
     public function test_unavailable_featured_items_are_hidden(): void
     {
         $tenant = $this->tenant();

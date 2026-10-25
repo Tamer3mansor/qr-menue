@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Offer;
 use App\Models\Setting;
+use App\Services\CartService;
 use App\Traits\ResolvesTenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,7 @@ class WebsiteController extends Controller
 {
     use ResolvesTenant;
 
-    public function show(string $slug): View
+    public function show(string $slug, CartService $cart): View
     {
         $tenant = $this->resolveTenant($slug);
 
@@ -72,6 +73,8 @@ class WebsiteController extends Controller
             ->orderBy('id')
             ->get();
 
+        $cartData = $cart->getCart($tenant->getKey());
+
         return view('website.show', [
             'user' => $tenant,
             'settings' => $settings,
@@ -86,6 +89,8 @@ class WebsiteController extends Controller
             'currency' => Setting::currencyFor($tenant),
             'font' => $font,
             'fontWeights' => self::fontWeightsFor($font),
+            'cart' => $cartData,
+            'cartItems' => $cartData['items'],
         ]);
     }
 
