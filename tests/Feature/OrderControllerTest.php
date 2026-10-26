@@ -66,6 +66,20 @@ class OrderControllerTest extends TestCase
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    protected function orderPayload(array $overrides = []): array
+    {
+        return [
+            'customer_name' => 'أحمد',
+            'customer_phone' => '01000000000',
+            'delivery_type' => 'takeaway',
+            ...$overrides,
+        ];
+    }
+
     public function test_adding_an_item_puts_it_in_the_cart(): void
     {
         $response = $this->postJson(route('menu.cart.add', ['slug' => $this->tenant->getKey()]), [
@@ -172,22 +186,24 @@ class OrderControllerTest extends TestCase
     {
         $this->seedCart(quantity: 2);
 
-        $response = $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), [
-            'customer_name' => 'أحمد',
-            'customer_phone' => '01000000000',
+        $response = $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload([
             'notes' => 'بدون بصل',
-        ]);
+        ]));
 
         $response->assertOk()
             ->assertJsonPath('customer_name', 'أحمد')
             ->assertJsonPath('customer_phone', '01000000000')
+            ->assertJsonPath('order_number', 1)
+            ->assertJsonPath('order_number_display', '#1')
             ->assertJsonPath('total', 200)
-            ->assertJsonStructure(['order_number', 'message']);
+            ->assertJsonStructure(['order_number', 'order_number_display', 'message']);
 
         $order = Order::query()->firstOrFail();
 
         $this->assertSame($this->tenant->getKey(), $order->user_id);
+        $this->assertSame(1, $order->tenant_order_number);
         $this->assertSame('pending', $order->status);
+        $this->assertSame('takeaway', $order->delivery_type);
         $this->assertSame(200.0, $order->total);
         $this->assertSame('بدون بصل', $order->notes);
 
@@ -204,38 +220,186 @@ class OrderControllerTest extends TestCase
     {
         $this->seedCart();
 
-        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), [
-            'customer_name' => 'أحمد',
-            'customer_phone' => '01000000000',
-        ])->assertOk();
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk();
 
         $this->assertNull(session($this->cartKey()));
     }
 
     public function test_an_empty_cart_cannot_be_submitted(): void
     {
-        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), [
-            'customer_name' => 'أحمد',
-            'customer_phone' => '01000000000',
-        ])->assertStatus(422)
-            ->assertJson(['message' => 'السلة فارغة، أضف أصنافاً أولاً.']);
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertStatus(422)
+            ->assertJson(['message' => 'طلبك فارغ، أضف أصنافاً أولاً.']);
 
         $this->assertDatabaseCount('orders', 0);
     }
 
-    public function test_generated_order_numbers_are_unique(): void
+    public function test_delivery_type_is_required(): void
     {
-        $first = Order::generateOrderNumber($this->tenant->getKey());
-        $second = Order::generateOrderNumber($this->tenant->getKey());
+        $this->seedCart();
 
-        $this->assertNotSame($first, $second);
-        $this->assertMatchesRegularExpression('/^ORD-[A-F0-9]{8}$/', $first);
-        $this->assertMatchesRegularExpression('/^ORD-[A-F0-9]{8}$/', $second);
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), [
+            'customer_name' => 'أحمد',
+            'customer_phone' => '01000000000',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['delivery_type']);
+    }
+
+    public function test_tenant_order_number_starts_at_one(): void
+    {
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk()
+            ->assertJsonPath('order_number', 1);
+
+        $this->assertDatabaseHas('orders', [
+            'user_id' => $this->tenant->getKey(),
+            'tenant_order_number' => 1,
+        ]);
+    }
+
+    public function test_tenant_order_number_increments_for_each_order(): void
+    {
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk()
+            ->assertJsonPath('order_number', 1);
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk()
+            ->assertJsonPath('order_number', 2);
+
+        $this->assertSame([1, 2], Order::query()->orderBy('id')->pluck('tenant_order_number')->all());
+    }
+
+    public function test_tenant_order_numbers_are_unique_per_tenant(): void
+    {
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk();
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk();
+
+        $numbers = Order::query()
+            ->where('user_id', $this->tenant->getKey())
+            ->pluck('tenant_order_number');
+
+        $this->assertSame($numbers->count(), $numbers->unique()->count());
+    }
+
+    public function test_tenant_order_numbers_are_independent_between_tenants(): void
+    {
+        Order::factory()->for($this->tenant)->create(['tenant_order_number' => 1]);
+
+        $otherTenant = User::factory()->create();
+
+        $this->assertSame(1, Order::generateOrderNumber($otherTenant->getKey()));
+        $this->assertSame(2, Order::generateOrderNumber($this->tenant->getKey()));
+    }
+
+    public function test_a_single_branch_is_selected_automatically(): void
+    {
+        $this->tenant->settings->update(['branches' => [
+            ['branch_name' => 'الفرع الرئيسي', 'address' => 'شارع 9', 'phone' => null],
+        ]]);
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertOk();
+
+        $this->assertSame(0, Order::query()->firstOrFail()->branch_id);
+    }
+
+    public function test_a_branch_is_required_when_more_than_one_exists(): void
+    {
+        $this->tenant->settings->update(['branches' => [
+            ['branch_name' => 'فرع المعادي', 'address' => 'شارع 9', 'phone' => null],
+            ['branch_name' => 'فرع مدينة نصر', 'address' => 'شارع عباس', 'phone' => null],
+        ]]);
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['branch_id']);
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_the_selected_branch_is_stored(): void
+    {
+        $this->tenant->settings->update(['branches' => [
+            ['branch_name' => 'فرع المعادي', 'address' => 'شارع 9', 'phone' => null],
+            ['branch_name' => 'فرع مدينة نصر', 'address' => 'شارع عباس', 'phone' => null],
+        ]]);
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload([
+            'branch_id' => 1,
+        ]))->assertOk();
+
+        $this->assertSame(1, Order::query()->firstOrFail()->branch_id);
+    }
+
+    public function test_a_branch_outside_the_configured_list_is_rejected(): void
+    {
+        $this->tenant->settings->update(['branches' => [
+            ['branch_name' => 'فرع المعادي', 'address' => 'شارع 9', 'phone' => null],
+            ['branch_name' => 'فرع مدينة نصر', 'address' => 'شارع عباس', 'phone' => null],
+        ]]);
+
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload([
+            'branch_id' => 5,
+        ]))->assertStatus(422)
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
+    public function test_delivery_requires_an_address(): void
+    {
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload([
+            'delivery_type' => 'delivery',
+        ]))->assertStatus(422)
+            ->assertJsonValidationErrors(['delivery_address']);
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_a_delivery_order_stores_its_address(): void
+    {
+        $this->seedCart();
+
+        $this->postJson(route('menu.order.submit', ['slug' => $this->tenant->getKey()]), $this->orderPayload([
+            'delivery_type' => 'delivery',
+            'delivery_address' => 'شارع 9، المعادي',
+        ]))->assertOk()
+            ->assertJsonPath('delivery_type', 'delivery')
+            ->assertJsonPath('delivery_address', 'شارع 9، المعادي');
+
+        $order = Order::query()->firstOrFail();
+
+        $this->assertSame('delivery', $order->delivery_type);
+        $this->assertSame('شارع 9، المعادي', $order->delivery_address);
     }
 
     public function test_tracking_an_order_returns_its_details(): void
     {
         $order = $this->orderFor($this->tenant, [
+            'tenant_order_number' => 47,
             'customer_name' => 'سارة',
             'status' => 'preparing',
             'total' => 150,
@@ -243,11 +407,12 @@ class OrderControllerTest extends TestCase
 
         $this->getJson(route('menu.order.track', [
             'slug' => $this->tenant->getKey(),
-            'order_number' => $order->order_number,
+            'order_number' => 47,
         ]))
             ->assertOk()
             ->assertJson([
-                'order_number' => $order->order_number,
+                'order_number' => 47,
+                'order_number_display' => '#47',
                 'status' => 'preparing',
                 'status_label' => 'جاري التنفيذ',
                 'customer_name' => 'سارة',
@@ -262,7 +427,7 @@ class OrderControllerTest extends TestCase
     {
         $this->getJson(route('menu.order.track', [
             'slug' => $this->tenant->getKey(),
-            'order_number' => 'ORD-NOTFOUND',
+            'order_number' => 999999,
         ]))->assertNotFound()
             ->assertJson(['message' => 'لم نجد طلباً بهذا الرقم.']);
     }
@@ -271,11 +436,11 @@ class OrderControllerTest extends TestCase
     {
         $otherTenant = User::factory()->create();
 
-        $order = $this->orderFor($otherTenant, ['order_number' => 'ORD-FOREIGN1']);
+        $this->orderFor($otherTenant, ['tenant_order_number' => 1]);
 
         $this->getJson(route('menu.order.track', [
             'slug' => $this->tenant->getKey(),
-            'order_number' => $order->order_number,
+            'order_number' => 1,
         ]))->assertNotFound();
     }
 
@@ -285,7 +450,8 @@ class OrderControllerTest extends TestCase
     protected function orderFor(User $tenant, array $attributes = [], int $quantity = 1, float $price = 100): Order
     {
         $order = Order::factory()->for($tenant)->create([
-            'order_number' => Order::generateOrderNumber($tenant->getKey()),
+            'tenant_order_number' => Order::generateOrderNumber($tenant->getKey()),
+            'delivery_type' => 'takeaway',
             ...$attributes,
         ]);
 

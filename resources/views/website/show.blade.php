@@ -469,12 +469,27 @@
 
         .field input,
         .field textarea,
+        .field select,
         .track-form input {
             width: 100%; min-height: 48px; padding: 12px 14px;
             border: 1px solid var(--border); border-radius: 12px;
             background: #fff; font: inherit; font-size: .9375rem;
         }
         .field textarea { min-height: 90px; resize: vertical; }
+
+        .delivery-type-btns { display: flex; gap: 10px; margin: 8px 0; }
+        .type-btn {
+            flex: 1; min-height: 48px; padding: 12px;
+            border: 2px solid #e0e0e0; border-radius: 12px;
+            background: #fff; color: var(--text);
+            font: inherit; font-size: .875rem; cursor: pointer;
+            transition: all .2s ease;
+        }
+        .type-btn.active {
+            border-color: var(--primary);
+            background: color-mix(in srgb, var(--primary) 8%, #fff);
+            color: var(--primary); font-weight: 700;
+        }
 
         .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
         .modal-actions .checkout-btn { flex: 1 1 auto; }
@@ -499,6 +514,40 @@
         .success-card h3 { margin: 0 0 8px; }
         .success-card p { margin: 4px 0; font-size: .875rem; }
         .track-hint { margin-top: 12px !important; color: var(--muted); }
+
+        .order-number-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; margin: 12px 0;
+        }
+        .order-number-badge {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px; border-radius: 50px;
+            background: var(--primary); color: #fff;
+            font-size: 1.25rem; font-weight: 900;
+        }
+        .copy-btn {
+            padding: 4px 8px; border: 0; border-radius: 8px;
+            background: rgb(255 255 255 / .2); color: inherit;
+            font-size: 1rem; cursor: pointer;
+        }
+
+        .contact-ways { margin: 14px 0 0; }
+        .contact-title { color: var(--muted); font-size: .8125rem !important; }
+        .contact-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin: 4px; padding: 8px 14px; border-radius: 999px;
+            background: var(--bg); color: var(--primary);
+            font-size: .8125rem; font-weight: 700;
+        }
+        .contact-link.whatsapp { background: #e8f7ee; color: #17663a; }
+        .contact-link.social { background: color-mix(in srgb, var(--primary) 10%, #fff); }
+
+        .track-btn {
+            width: 100%; min-height: 48px; margin-top: 12px;
+            border: 0; border-radius: 12px;
+            background: var(--primary); color: #fff;
+            font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+        }
 
         /* Track order */
         .track-section {
@@ -804,7 +853,13 @@
                             @php
                                 $offer = $offersByItem->get($item->getKey());
                             @endphp
-                            <article class="card card--featured" data-reveal data-item-id="{{ $item->getKey() }}">
+                            <article
+                                class="card card--featured"
+                                data-reveal
+                                data-item-id="{{ $item->getKey() }}"
+                                data-name="{{ $item->title }}"
+                                data-price="{{ (float) $item->price }}"
+                            >
                                 <div class="card__media">
                                     @if (filled($item->image_url))
                                         <img src="{{ $item->image_url }}" alt="{{ $item->title }}" loading="lazy">
@@ -850,7 +905,7 @@
                                             type="button"
                                             class="add-to-cart-btn"
                                             onclick="addToCart({{ $item->getKey() }})"
-                                        >+ أضف للسلة</button>
+                                        >اطلب</button>
                                     </div>
                                 </div>
                             </article>
@@ -956,7 +1011,7 @@
                                                 type="button"
                                                 class="add-to-cart-btn"
                                                 onclick="addToCart({{ $item->getKey() }})"
-                                            >+ أضف للسلة</button>
+                                            >اطلب</button>
                                         </div>
                                     </div>
                                 </article>
@@ -1058,8 +1113,10 @@
                     <div class="track-form">
                         <input
                             id="trackNumber"
-                            type="text"
-                            placeholder="رقم الطلب مثلاً: ORD-XXXXXXXX"
+                            type="number"
+                            min="1"
+                            inputmode="numeric"
+                            placeholder="رقم طلبك مثلاً: 47"
                             aria-label="رقم الطلب"
                             autocomplete="off"
                         >
@@ -1117,7 +1174,7 @@
         id="cartFab"
         class="cart-fab"
         onclick="openCartTab()"
-        aria-label="فتح السلة"
+        aria-label="فتح طلبك"
         @if ($cart['count'] === 0) hidden @endif
     >
         <span aria-hidden="true">🛒</span>
@@ -1128,7 +1185,7 @@
         <div class="cart-sheet">
             <div class="cart-header">
                 <h3 id="cartTitle">طلبك</h3>
-                <button type="button" class="icon-btn" onclick="closeCart()" aria-label="إغلاق السلة">✕</button>
+                <button type="button" class="icon-btn" onclick="closeCart()" aria-label="إغلاق طلبك">✕</button>
             </div>
 
             <div id="cartItems" class="cart-items"></div>
@@ -1147,6 +1204,46 @@
         <div class="modal-card">
             <h3 id="orderTitle">بيانات الطلب</h3>
 
+            @if (count($branches) > 1)
+                <label class="field">
+                    <span class="field__label">اختر الفرع</span>
+                    <select id="branchSelect" aria-label="اختر الفرع">
+                        <option value="">-- اختر الفرع --</option>
+                        @foreach ($branches as $index => $branch)
+                            <option value="{{ $index }}">{{ $branch['branch_name'] ?? 'فرع '.($index + 1) }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
+
+            <div class="field">
+                <span class="field__label">نوع الاستلام</span>
+                <div class="delivery-type-btns">
+                    <button
+                        type="button"
+                        class="type-btn active"
+                        data-type="takeaway"
+                        onclick="setDeliveryType('takeaway')"
+                    >🏃 تيك أواي</button>
+                    <button
+                        type="button"
+                        class="type-btn"
+                        data-type="delivery"
+                        onclick="setDeliveryType('delivery')"
+                    >🛵 دليفري</button>
+                </div>
+            </div>
+
+            <div id="addressGroup" class="field" style="display:none">
+                <span class="field__label">العنوان</span>
+                <textarea
+                    id="deliveryAddress"
+                    placeholder="اكتب عنوانك بالتفصيل"
+                    aria-label="عنوان التوصيل"
+                    maxlength="500"
+                ></textarea>
+            </div>
+
             <label class="field">
                 <input id="customerName" type="text" placeholder="اسمك" aria-label="اسمك" autocomplete="name" maxlength="100">
             </label>
@@ -1163,7 +1260,7 @@
 
             <div class="modal-actions">
                 <button type="button" class="secondary-btn" onclick="closeOrderForm()">إلغاء</button>
-                <button type="button" id="submitOrderBtn" class="checkout-btn" onclick="submitOrder()">إرسال الطلب</button>
+                <button type="button" id="submitOrderBtn" class="checkout-btn" onclick="submitOrder()">تأكيد الطلب</button>
             </div>
         </div>
     </div>
@@ -1172,11 +1269,43 @@
         <div class="success-card">
             <div class="success-icon" aria-hidden="true">✓</div>
             <h3 id="successTitle">تم استلام طلبك!</h3>
-            <p>رقم طلبك: <strong id="orderNumber"></strong></p>
+
+            <div class="order-number-row">
+                <span>رقم طلبك:</span>
+                <div class="order-number-badge">
+                    <strong id="orderNumber"></strong>
+                    <button
+                        type="button"
+                        onclick="copyOrderNumber()"
+                        class="copy-btn"
+                        title="انسخ الرقم"
+                        aria-label="انسخ رقم الطلب"
+                    >📋</button>
+                </div>
+            </div>
+
             <p id="successName"></p>
             <p id="successPhone"></p>
-            <p class="track-hint">احتفظ برقم الطلب لمتابعة حالته</p>
-            <button type="button" class="checkout-btn" onclick="showTrackForm()">تتبع طلبك</button>
+
+            <div class="contact-ways">
+                <p class="contact-title">تابع طلبك عن طريق:</p>
+
+                @if (filled($phone))
+                    <a href="https://wa.me/{{ $phone }}" class="contact-link whatsapp" target="_blank" rel="noopener">
+                        <span aria-hidden="true">💬</span>
+                        <span>واتساب</span>
+                    </a>
+                @endif
+
+                @foreach ($socialLinks as $platform => $url)
+                    <a href="{{ $url }}" class="contact-link social" target="_blank" rel="noopener">
+                        <span>{{ $platform }}</span>
+                    </a>
+                @endforeach
+            </div>
+
+            <p class="track-hint">احتفظ برقم طلبك للمتابعة</p>
+            <button type="button" class="track-btn" onclick="goToTrack()">تتبع طلبك الآن</button>
         </div>
     </div>
 
@@ -1383,6 +1512,7 @@
 
             var cart = config.cart || { items: {}, total: 0, count: 0 };
             var lastOrderNumber = '';
+            var selectedDeliveryType = 'takeaway';
             var toastTimer;
 
             var csrf = document.querySelector('meta[name="csrf-token"]');
@@ -1475,6 +1605,33 @@
                 return (cart.items || {})[String(itemId)] || null;
             }
 
+            function cloneCart() {
+                return JSON.parse(JSON.stringify(cart));
+            }
+
+            /**
+             * Rebuilds totals from the local lines so the optimistic cart still
+             * shows the right count and total before the server answers.
+             */
+            function recalculateLocalCart() {
+                var total = 0;
+                var count = 0;
+
+                Object.keys(cart.items || {}).forEach(function (key) {
+                    var line = cart.items[key];
+
+                    line.price = Number(line.price || 0);
+                    line.quantity = Number(line.quantity || 0);
+                    line.subtotal = Math.round(line.price * line.quantity * 100) / 100;
+
+                    total += line.subtotal;
+                    count += line.quantity;
+                });
+
+                cart.total = Math.round(total * 100) / 100;
+                cart.count = count;
+            }
+
             function renderCartItems() {
                 var container = document.getElementById('cartItems');
                 var lines = Object.values(cart.items || {});
@@ -1482,7 +1639,7 @@
                 container.replaceChildren();
 
                 if (lines.length === 0) {
-                    container.appendChild(make('p', 'cart-empty', 'السلة فارغة، اختر بعض الأصناف أولاً.'));
+                    container.appendChild(make('p', 'cart-empty', 'طلبك فارغ، اختر بعض الأصناف أولاً.'));
                     return;
                 }
 
@@ -1565,18 +1722,48 @@
                 renderCart();
             }
 
-            async function addToCart(itemId) {
-                try {
-                    var data = await request(config.urls.add, {
-                        method: 'POST',
-                        body: JSON.stringify({ item_id: itemId }),
-                    });
+            function addToCart(itemId) {
+                var previousCart = cloneCart();
+                var key = String(itemId);
+                var line = findLine(itemId);
+                var actions = document.querySelector('.item-actions[data-item-id="' + itemId + '"]');
+                var card = actions ? actions.closest('.card') : null;
+                var name = card ? (card.getAttribute('data-name') || '') : '';
+                var price = card ? parseFloat(card.getAttribute('data-price') || '0') : 0;
 
-                    await refreshCart();
-                    showToast(data.message || 'تم الإضافة');
-                } catch (error) {
-                    showToast(error.message);
+                // Optimistic UI: the button becomes quantity controls right away,
+                // then the session is updated in the background.
+                if (!line) {
+                    line = {
+                        id: Number(itemId),
+                        name: name,
+                        price: price,
+                        quantity: 0,
+                        subtotal: 0,
+                        image: null,
+                    };
+
+                    cart.items[key] = line;
                 }
+
+                line.quantity = Number(line.quantity || 0) + 1;
+                recalculateLocalCart();
+                renderCart();
+
+                request(config.urls.add, {
+                    method: 'POST',
+                    body: JSON.stringify({ item_id: itemId }),
+                }).then(function (data) {
+                    return refreshCart().then(function () {
+                        showToast(data.message || 'تم الإضافة');
+                    });
+                }).catch(function (error) {
+                    // The server rejected the add, so put the cart back exactly
+                    // where it was before the tap.
+                    cart = previousCart;
+                    renderCart();
+                    showToast(error.message);
+                });
             }
 
             async function setQuantity(itemId, quantity) {
@@ -1628,9 +1815,23 @@
                 closeModal(document.getElementById('cartModal'));
             }
 
+            function setDeliveryType(type) {
+                selectedDeliveryType = type;
+
+                var addressGroup = document.getElementById('addressGroup');
+
+                if (addressGroup) {
+                    addressGroup.style.display = type === 'delivery' ? 'block' : 'none';
+                }
+
+                document.querySelectorAll('.type-btn').forEach(function (button) {
+                    button.classList.toggle('active', button.dataset.type === type);
+                });
+            }
+
             function showOrderForm() {
                 if (Object.keys(cart.items || {}).length === 0) {
-                    showToast('السلة فارغة، أضف أصنافاً أولاً.');
+                    showToast('طلبك فارغ، أضف أصنافاً أولاً.');
                     return;
                 }
 
@@ -1640,6 +1841,8 @@
 
                 error.hidden = true;
                 error.textContent = '';
+
+                setDeliveryType('takeaway');
 
                 openModal(document.getElementById('orderModal'));
                 document.getElementById('customerName').focus();
@@ -1660,10 +1863,25 @@
                 var name = document.getElementById('customerName').value.trim();
                 var phone = document.getElementById('customerPhone').value.trim();
                 var notes = document.getElementById('orderNotes').value.trim();
+                var address = document.getElementById('deliveryAddress').value.trim();
+                var branchSelect = document.getElementById('branchSelect');
+                var branchId = branchSelect && branchSelect.value !== '' ? Number(branchSelect.value) : null;
                 var button = document.getElementById('submitOrderBtn');
 
                 if (!name || !phone) {
                     showOrderError('يرجى إدخال الاسم ورقم الهاتف.');
+
+                    return;
+                }
+
+                if (branchSelect && branchId === null) {
+                    showOrderError('يرجى اختيار الفرع.');
+
+                    return;
+                }
+
+                if (selectedDeliveryType === 'delivery' && !address) {
+                    showOrderError('يرجى إدخال عنوان التوصيل.');
 
                     return;
                 }
@@ -1677,12 +1895,15 @@
                             customer_name: name,
                             customer_phone: phone,
                             notes: notes || null,
+                            branch_id: branchId,
+                            delivery_type: selectedDeliveryType,
+                            delivery_address: selectedDeliveryType === 'delivery' ? address : null,
                         }),
                     });
 
-                    lastOrderNumber = data.order_number;
+                    lastOrderNumber = String(data.order_number);
 
-                    document.getElementById('orderNumber').textContent = data.order_number;
+                    document.getElementById('orderNumber').textContent = data.order_number_display || ('#' + data.order_number);
                     document.getElementById('successName').textContent = data.customer_name;
                     document.getElementById('successPhone').textContent = data.customer_phone;
 
@@ -1692,6 +1913,13 @@
                     document.getElementById('customerName').value = '';
                     document.getElementById('customerPhone').value = '';
                     document.getElementById('orderNotes').value = '';
+                    document.getElementById('deliveryAddress').value = '';
+
+                    if (branchSelect) {
+                        branchSelect.value = '';
+                    }
+
+                    setDeliveryType('takeaway');
 
                     closeOrderForm();
                     openModal(document.getElementById('successModal'));
@@ -1704,6 +1932,46 @@
 
             function closeSuccess() {
                 closeModal(document.getElementById('successModal'));
+            }
+
+            function copyOrderNumber() {
+                var element = document.getElementById('orderNumber');
+                var value = element ? element.textContent : '';
+
+                function copied() {
+                    showToast('تم نسخ رقم الطلب ✓');
+                }
+
+                function fallback() {
+                    var field = document.createElement('textarea');
+
+                    field.value = value;
+                    field.setAttribute('readonly', '');
+                    field.style.position = 'fixed';
+                    field.style.opacity = '0';
+
+                    document.body.appendChild(field);
+                    field.select();
+
+                    try {
+                        document.execCommand('copy');
+                        copied();
+                    } catch (error) {
+                        // The browser refused every copy route; nothing else to try.
+                    }
+
+                    document.body.removeChild(field);
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(value).then(copied).catch(fallback);
+                } else {
+                    fallback();
+                }
+            }
+
+            function goToTrack() {
+                showTrackForm();
             }
 
             function showTrackForm() {
@@ -1762,7 +2030,7 @@
                 var input = document.getElementById('trackNumber');
                 var orderNumber = input.value.trim();
 
-                if (!orderNumber) {
+                if (!orderNumber || !/^\d+$/.test(orderNumber)) {
                     renderTrackError('يرجى إدخال رقم الطلب.');
 
                     return;
@@ -1816,7 +2084,10 @@
             window.openCartTab = openCartTab;
             window.closeCart = closeCart;
             window.showOrderForm = showOrderForm;
+            window.setDeliveryType = setDeliveryType;
             window.submitOrder = submitOrder;
+            window.copyOrderNumber = copyOrderNumber;
+            window.goToTrack = goToTrack;
             window.showTrackForm = showTrackForm;
             window.trackOrder = trackOrder;
 

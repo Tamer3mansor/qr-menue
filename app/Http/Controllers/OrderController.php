@@ -10,6 +10,7 @@ use App\Traits\ResolvesTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -67,27 +68,51 @@ class OrderController extends Controller
     {
         $tenant = $this->resolveTenant($slug);
 
+        $branches = $tenant->settings?->branchesList() ?? [];
+
         $data = $request->validate([
             'customer_name' => ['required', 'string', 'max:100'],
             'customer_phone' => ['required', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'branch_id' => [
+                count($branches) > 1 ? 'required' : 'nullable',
+                'integer',
+                Rule::in(array_keys($branches)),
+            ],
+            'delivery_type' => ['required', Rule::in(['takeaway', 'delivery'])],
+            'delivery_address' => ['nullable', 'string', 'max:500', 'required_if:delivery_type,delivery'],
+        ], [
+            'branch_id.required' => 'يرجى اختيار الفرع.',
+            'branch_id.in' => 'الفرع المحدد غير متاح.',
+            'delivery_type.required' => 'يرجى اختيار نوع الاستلام.',
+            'delivery_type.in' => 'نوع الاستلام غير صحيح.',
+            'delivery_address.required_if' => 'يرجى إدخال عنوان التوصيل.',
         ]);
 
         $cart = $this->cart->getCart($tenant->getKey());
 
         if ($cart['items'] === []) {
             return response()->json([
-                'message' => 'السلة فارغة، أضف أصنافاً أولاً.',
+                'message' => 'طلبك فارغ، أضف أصنافاً أولاً.',
             ], 422);
         }
 
-        $order = DB::transaction(function () use ($tenant, $data, $cart): Order {
+        $branchId = $data['branch_id'] ?? null;
+
+        if (count($branches) === 1 && $branchId === null) {
+            $branchId = array_key_first($branches);
+        }
+
+        $order = DB::transaction(function () use ($tenant, $data, $cart, $branchId): Order {
             $order = Order::create([
                 'user_id' => $tenant->getKey(),
-                'order_number' => Order::generateOrderNumber($tenant->getKey()),
+                'tenant_order_number' => Order::generateOrderNumber($tenant->getKey()),
+                'branch_id' => $branchId,
                 'customer_name' => $data['customer_name'],
                 'customer_phone' => $data['customer_phone'],
                 'notes' => $data['notes'] ?? null,
+                'delivery_type' => $data['delivery_type'],
+                'delivery_address' => $data['delivery_address'] ?? null,
                 'total' => $cart['total'],
                 'status' => 'pending',
             ]);
@@ -109,9 +134,12 @@ class OrderController extends Controller
         $this->cart->clearCart($tenant->getKey());
 
         return response()->json([
-            'order_number' => $order->order_number,
+            'order_number' => $order->tenant_order_number,
+            'order_number_display' => $order->displayNumber(),
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
+            'delivery_type' => $order->delivery_type,
+            'delivery_address' => $order->delivery_address,
             'total' => (float) $order->total,
             'message' => 'تم استلام طلبك بنجاح',
         ]);
@@ -122,11 +150,11 @@ class OrderController extends Controller
         $tenant = $this->resolveTenant($slug);
 
         $data = $request->validate([
-            'order_number' => ['required', 'string', 'max:50'],
+            'order_number' => ['required', 'integer', 'min:1'],
         ]);
 
         $order = Order::query()
-            ->where('order_number', $data['order_number'])
+            ->where('tenant_order_number', (int) $data['order_number'])
             ->where('user_id', $tenant->getKey())
             ->with('items')
             ->first();
@@ -138,7 +166,8 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'order_number' => $order->order_number,
+            'order_number' => $order->tenant_order_number,
+            'order_number_display' => $order->displayNumber(),
             'status' => $order->status,
             'status_label' => $order->statusLabel(),
             'customer_name' => $order->customer_name,

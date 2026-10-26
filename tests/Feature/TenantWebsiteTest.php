@@ -136,7 +136,7 @@ class TenantWebsiteTest extends TestCase
 
         $this->assertStringContainsString('data-item-id="'.$featured->getKey().'"', $content);
         $this->assertGreaterThanOrEqual(3, substr_count($content, 'add-to-cart-btn'));
-        $this->assertStringContainsString('أضف للسلة', $content);
+        $this->assertStringContainsString('>اطلب</button>', $content);
         $this->assertStringContainsString('id="cartFab"', $content);
         $this->assertStringContainsString('id="cartModal"', $content);
         $this->assertStringContainsString('id="orderModal"', $content);
@@ -144,6 +144,83 @@ class TenantWebsiteTest extends TestCase
         $this->assertStringContainsString('id="trackSection"', $content);
         $this->assertStringContainsString('window.siteOrder', $content);
         $this->assertStringNotContainsString('window.menuOrder', $content);
+    }
+
+    public function test_the_add_to_cart_flow_updates_the_ui_before_the_request(): void
+    {
+        $this->tenant();
+
+        $content = $this->get('/site/demo')->assertOk()->getContent();
+
+        $optimisticUpdate = strpos($content, 'recalculateLocalCart();');
+        $serverRequest = strpos($content, 'request(config.urls.add,');
+
+        $this->assertNotFalse($optimisticUpdate);
+        $this->assertNotFalse($serverRequest);
+        $this->assertLessThan($serverRequest, $optimisticUpdate);
+    }
+
+    public function test_the_success_modal_has_a_copyable_order_number(): void
+    {
+        $this->tenant();
+
+        $content = $this->get('/site/demo')->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="orderNumber"', $content);
+        $this->assertStringContainsString('onclick="copyOrderNumber()"', $content);
+        $this->assertStringContainsString('function copyOrderNumber()', $content);
+        $this->assertStringContainsString('goToTrack()', $content);
+    }
+
+    public function test_the_order_form_asks_for_a_branch_when_there_are_many(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['branches' => [
+            ['branch_name' => 'فرع المعادي', 'address' => 'شارع 9', 'phone' => null],
+            ['branch_name' => 'فرع مدينة نصر', 'address' => 'شارع عباس', 'phone' => null],
+        ]]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('id="branchSelect"', false)
+            ->assertSee('فرع المعادي')
+            ->assertSee('فرع مدينة نصر');
+    }
+
+    public function test_the_order_form_hides_the_branch_selector_for_a_single_branch(): void
+    {
+        $tenant = $this->tenant();
+
+        $tenant->settings->update(['branches' => [
+            ['branch_name' => 'الفرع الرئيسي', 'address' => 'شارع 9', 'phone' => null],
+        ]]);
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertDontSee('id="branchSelect"', false);
+    }
+
+    public function test_the_order_form_offers_both_delivery_types(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('data-type="takeaway"', false)
+            ->assertSee('data-type="delivery"', false)
+            ->assertSee('setDeliveryType', false)
+            ->assertSee('id="deliveryAddress"', false);
+    }
+
+    public function test_order_tracking_accepts_a_number(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('id="trackNumber"', false)
+            ->assertSee('رقم طلبك مثلاً: 47');
     }
 
     public function test_unavailable_featured_items_are_hidden(): void

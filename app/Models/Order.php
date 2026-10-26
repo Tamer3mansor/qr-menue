@@ -8,14 +8,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'user_id',
-    'order_number',
+    'tenant_order_number',
+    'branch_id',
     'customer_name',
     'customer_phone',
     'status',
     'notes',
+    'delivery_type',
+    'delivery_address',
     'total',
 ])]
 class Order extends Model
@@ -24,10 +28,24 @@ class Order extends Model
     use HasFactory;
 
     /**
-     * Keeps two orders generated in the same second from sharing a number,
-     * even before either has been persisted.
+     * The customer-facing labels for every delivery type.
+     *
+     * @var array<string, string>
      */
-    protected static int $orderNumberSequence = 0;
+    public const DELIVERY_TYPE_LABELS = [
+        'takeaway' => 'تيك أواي',
+        'delivery' => 'دليفري',
+    ];
+
+    /**
+     * The Filament badge color for every delivery type.
+     *
+     * @var array<string, string>
+     */
+    public const DELIVERY_TYPE_COLORS = [
+        'takeaway' => 'gray',
+        'delivery' => 'info',
+    ];
 
     /**
      * The customer-facing labels for every order status.
@@ -63,6 +81,8 @@ class Order extends Model
     protected function casts(): array
     {
         return [
+            'tenant_order_number' => 'integer',
+            'branch_id' => 'integer',
             'total' => 'float',
         ];
     }
@@ -78,24 +98,54 @@ class Order extends Model
     }
 
     /**
-     * A short, human-readable number that stays unique per install.
+     * The next order number for a tenant, counted from 1.
      *
-     * The attempt counter is folded into the hash so two orders created within
-     * the same second still get different numbers.
+     * The row lock keeps two simultaneous submissions from reading the same
+     * maximum; the unique index on the table is the final guarantee.
      */
-    public static function generateOrderNumber(int $tenantId): string
+    public static function generateOrderNumber(int $tenantId): int
     {
-        $attempt = 0;
+        return DB::transaction(function () use ($tenantId): int {
+            $max = self::query()
+                ->where('user_id', $tenantId)
+                ->lockForUpdate()
+                ->max('tenant_order_number');
 
-        do {
-            $orderNumber = 'ORD-'.strtoupper(substr(md5($tenantId.time().self::$orderNumberSequence.$attempt), 0, 8));
+            return ((int) $max) + 1;
+        });
+    }
 
-            $attempt++;
-        } while (self::query()->where('order_number', $orderNumber)->exists());
+    /**
+     * The number customers see, always prefixed with a hash, e.g. "#47".
+     */
+    public function displayNumber(): string
+    {
+        return '#'.$this->tenant_order_number;
+    }
 
-        self::$orderNumberSequence++;
+    public function deliveryTypeLabel(): string
+    {
+        return self::DELIVERY_TYPE_LABELS[$this->delivery_type] ?? $this->delivery_type;
+    }
 
-        return $orderNumber;
+    public function deliveryTypeColor(): string
+    {
+        return self::DELIVERY_TYPE_COLORS[$this->delivery_type] ?? 'gray';
+    }
+
+    /**
+     * Branch names live in the tenant's settings JSON, so the stored id is the
+     * branch's position in that list.
+     */
+    public function branchName(): ?string
+    {
+        if ($this->branch_id === null) {
+            return null;
+        }
+
+        $branch = ($this->user?->settings?->branchesList() ?? [])[$this->branch_id] ?? null;
+
+        return is_array($branch) ? ($branch['branch_name'] ?? null) : null;
     }
 
     /**

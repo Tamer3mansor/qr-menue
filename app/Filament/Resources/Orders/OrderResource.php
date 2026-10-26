@@ -21,7 +21,7 @@ class OrderResource extends Resource
 
     protected static ?string $pluralModelLabel = 'الطلبات';
 
-    protected static ?string $recordTitleAttribute = 'order_number';
+    protected static ?string $recordTitleAttribute = 'tenant_order_number';
 
     public static function getEloquentQuery(): Builder
     {

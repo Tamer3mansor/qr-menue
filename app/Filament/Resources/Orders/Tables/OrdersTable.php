@@ -30,8 +30,9 @@ class OrdersTable
                 'currency' => self::currency(),
             ]))
             ->columns([
-                TextColumn::make('order_number')
+                TextColumn::make('tenant_order_number')
                     ->label('رقم الطلب')
+                    ->formatStateUsing(fn (Order $record): string => $record->displayNumber())
                     ->searchable()
                     ->copyable()
                     ->sortable(),
@@ -41,6 +42,15 @@ class OrdersTable
                 TextColumn::make('customer_phone')
                     ->label('رقم الهاتف')
                     ->copyable(),
+                TextColumn::make('delivery_type')
+                    ->label('نوع الاستلام')
+                    ->badge()
+                    ->formatStateUsing(fn (Order $record): string => $record->deliveryTypeLabel())
+                    ->color(fn (Order $record): string => $record->deliveryTypeColor()),
+                TextColumn::make('branch_id')
+                    ->label('الفرع')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (Order $record): string => $record->branchName() ?? '—'),
                 TextColumn::make('total')
                     ->label('الإجمالي')
                     ->money(fn (Order $record): string => Setting::currencyFor($record->user))
@@ -64,13 +74,14 @@ class OrdersTable
             ->recordActions([
                 ViewAction::make()
                     ->label('عرض')
-                    ->modalHeading(fn (Order $record): string => 'طلب '.$record->order_number)
+                    ->modalHeading(fn (Order $record): string => 'طلب '.$record->displayNumber())
                     ->schema([
                         Section::make('بيانات الطلب')
                             ->columns(2)
                             ->schema([
-                                TextEntry::make('order_number')
-                                    ->label('رقم الطلب'),
+                                TextEntry::make('tenant_order_number')
+                                    ->label('رقم الطلب')
+                                    ->state(fn (Order $record): string => $record->displayNumber()),
                                 TextEntry::make('status')
                                     ->label('الحالة')
                                     ->badge()
@@ -80,6 +91,18 @@ class OrdersTable
                                     ->label('اسم العميل'),
                                 TextEntry::make('customer_phone')
                                     ->label('رقم الهاتف'),
+                                TextEntry::make('delivery_type')
+                                    ->label('نوع الاستلام')
+                                    ->badge()
+                                    ->state(fn (Order $record): string => $record->deliveryTypeLabel())
+                                    ->color(fn (Order $record): string => $record->deliveryTypeColor()),
+                                TextEntry::make('branch_id')
+                                    ->label('الفرع')
+                                    ->state(fn (Order $record): string => $record->branchName() ?? '—'),
+                                TextEntry::make('delivery_address')
+                                    ->label('عنوان التوصيل')
+                                    ->placeholder('—')
+                                    ->columnSpanFull(),
                                 TextEntry::make('total')
                                     ->label('الإجمالي')
                                     ->state(fn (Order $record): string => Setting::currencyFor($record->user).' '.number_format((float) $record->total, 2)),

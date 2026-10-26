@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Setting;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
@@ -79,10 +80,32 @@ class OrderResourceTest extends TestCase
         Livewire::test(ListOrders::class)
             ->assertActionExists(TestAction::make('view')->table($order))
             ->assertActionExists(TestAction::make('updateStatus')->table($order))
-            ->assertSee($order->order_number)
+            ->assertSee('#'.$order->tenant_order_number)
             ->assertSee('أحمد')
             ->assertSee('200')
             ->assertSee('جاري التنفيذ');
+    }
+
+    public function test_the_table_shows_the_delivery_type_and_branch(): void
+    {
+        Setting::factory()->create([
+            'user_id' => $this->tenant->getKey(),
+            'branches' => [
+                ['branch_name' => 'فرع المعادي', 'address' => 'شارع 9', 'phone' => null],
+            ],
+        ]);
+
+        $order = $this->createOrderFor($this->tenant, [
+            'tenant_order_number' => 7,
+            'branch_id' => 0,
+            'delivery_type' => 'delivery',
+            'delivery_address' => 'شارع 9، المعادي',
+        ]);
+
+        Livewire::test(ListOrders::class)
+            ->assertSee('#7')
+            ->assertSee('دليفري')
+            ->assertSee('فرع المعادي');
     }
 
     public function test_updating_the_status_changes_the_order(): void
