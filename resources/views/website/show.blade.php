@@ -555,6 +555,15 @@
             border-radius: 16px; background: #fff;
             box-shadow: 0 1px 2px rgb(0 0 0 / .05);
         }
+        .track-cta {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px;
+            margin-top: 28px; padding: 18px 20px;
+            border-radius: var(--radius); border: 1px solid var(--border);
+            background: var(--card-bg); box-shadow: var(--shadow);
+        }
+        .track-cta span { color: var(--muted); font-weight: 600; }
+        .track-nav-link { color: var(--primary) !important; }
         .track-form { display: flex; gap: 8px; }
         .track-form input { flex: 1 1 auto; }
         .track-form button {
@@ -726,6 +735,7 @@
 
             <nav class="site-nav nav-links" id="site-nav" aria-label="التنقل الرئيسي">
                 <a class="site-nav__link" href="#home">الرئيسية</a>
+                <a class="site-nav__link track-nav-link" href="{{ route('site.track', ['slug' => $tenantSlug]) }}">📦 تتبع طلبك</a>
                 <a class="site-nav__link" href="#products">المنتجات</a>
                 @if ($hasComboOffers)
                     <a class="site-nav__link" href="#offers">العروض</a>
@@ -1023,6 +1033,11 @@
                 @endforelse
 
                 <p class="empty is-hidden" id="no-results">لا توجد نتائج مطابقة.</p>
+
+                <div class="track-cta">
+                    <span>عندك طلب سابق؟</span>
+                    <a class="btn btn--ghost" href="{{ route('site.track', ['slug' => $tenantSlug]) }}">تتبع طلبك ←</a>
+                </div>
             </div>
         </section>
 
@@ -1494,6 +1509,7 @@
                 'show' => route('site.cart', ['slug' => $tenantSlug]),
                 'submit' => route('site.order.submit', ['slug' => $tenantSlug]),
                 'track' => route('site.order.track', ['slug' => $tenantSlug]),
+                'trackPage' => route('site.track', ['slug' => $tenantSlug]),
             ]),
             currency: @js($currency),
             cart: @js($cart),
@@ -1971,6 +1987,12 @@
             }
 
             function goToTrack() {
+                if (lastOrderNumber && config.urls.trackPage) {
+                    window.location.href = config.urls.trackPage + '/' + encodeURIComponent(lastOrderNumber);
+
+                    return;
+                }
+
                 showTrackForm();
             }
 

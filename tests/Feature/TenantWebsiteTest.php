@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\Offer;
+use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -221,6 +222,67 @@ class TenantWebsiteTest extends TestCase
             ->assertOk()
             ->assertSee('id="trackNumber"', false)
             ->assertSee('رقم طلبك مثلاً: 47');
+    }
+
+    public function test_the_track_page_opens(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo/track')
+            ->assertOk()
+            ->assertViewIs('order.track')
+            ->assertSee('تتبع طلبك')
+            ->assertSee('id="orderNumber"', false);
+    }
+
+    public function test_the_track_page_prefills_the_order_number_from_the_url(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo/track/47')
+            ->assertOk()
+            ->assertViewIs('order.track')
+            ->assertSee('value="47"', false);
+    }
+
+    public function test_the_track_page_shows_the_order_and_its_timeline(): void
+    {
+        $tenant = $this->tenant();
+
+        Order::factory()->for($tenant)->create([
+            'tenant_order_number' => 47,
+            'status' => 'preparing',
+            'total' => 135,
+        ]);
+
+        $this->get('/site/demo/track/47')
+            ->assertOk()
+            ->assertSee('طلب #47')
+            ->assertSee('جاري التنفيذ')
+            ->assertSee('أنت هنا')
+            ->assertSee('تيك أواي')
+            ->assertSee('135.00');
+    }
+
+    public function test_the_track_page_reports_an_unknown_order_number(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo/track/999999')
+            ->assertOk()
+            ->assertSee('لم نجد طلباً بهذا الرقم.');
+    }
+
+    public function test_the_track_nav_link_is_in_the_website_header(): void
+    {
+        $this->tenant();
+
+        $this->get('/site/demo')
+            ->assertOk()
+            ->assertSee('site-nav__link track-nav-link', false)
+            ->assertSee('📦 تتبع طلبك')
+            ->assertSee('href="'.route('site.track', ['slug' => 'demo']).'"', false)
+            ->assertSee('track-cta', false);
     }
 
     public function test_unavailable_featured_items_are_hidden(): void

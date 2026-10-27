@@ -57,11 +57,11 @@ class QrCodePageTest extends TestCase
         $qrCode = $this->tenant->qrCode()->firstOrFail();
 
         $this->assertSame('https://qr-menu.test/menu/'.$this->tenant->id, $qrCode->url);
-        $this->assertSame("qrcodes/{$this->tenant->id}.svg", $qrCode->image_path);
+        $this->assertSame("qrcodes/{$this->tenant->id}.png", $qrCode->image_path);
 
         Storage::disk(QrCode::DISK)->assertExists($qrCode->image_path);
 
-        $this->assertStringContainsString('<svg', Storage::disk(QrCode::DISK)->get($qrCode->image_path));
+        $this->assertStringStartsWith("\x89PNG", Storage::disk(QrCode::DISK)->get($qrCode->image_path));
     }
 
     public function test_the_url_uses_the_id_even_when_the_tenant_has_a_domain(): void
@@ -104,27 +104,38 @@ class QrCodePageTest extends TestCase
         $this->assertSame("https://example.test/menu/{$this->tenant->id}", $qrCode->url);
     }
 
-    public function test_the_generated_image_is_a_svg(): void
+    public function test_the_generated_image_is_a_png(): void
     {
         $qrCode = $this->service->generateForTenant($this->tenant);
 
-        $svg = Storage::disk(QrCode::DISK)->get($qrCode->image_path);
+        $png = Storage::disk(QrCode::DISK)->get($qrCode->image_path);
 
-        $this->assertStringStartsWith('<?xml', $svg);
-        $this->assertStringContainsString('<svg', $svg);
+        $this->assertStringStartsWith("\x89PNG", $png);
+        $this->assertStringNotContainsString('<svg', $png);
+    }
+
+    public function test_the_generated_png_is_400_by_400(): void
+    {
+        $qrCode = $this->service->generateForTenant($this->tenant);
+
+        $size = getimagesize(Storage::disk(QrCode::DISK)->path($qrCode->image_path));
+
+        $this->assertNotFalse($size);
+        $this->assertSame(400, $size[0]);
+        $this->assertSame(400, $size[1]);
     }
 
     public function test_the_encoded_url_actually_changes_the_image(): void
     {
         $before = $this->service->generateForTenant($this->tenant)->image_path;
-        $beforeSvg = Storage::disk(QrCode::DISK)->get($before);
+        $beforePng = Storage::disk(QrCode::DISK)->get($before);
 
         config(['app.url' => 'https://a-completely-different-host.test']);
 
         $after = $this->service->generateForTenant($this->tenant)->image_path;
-        $afterSvg = Storage::disk(QrCode::DISK)->get($after);
+        $afterPng = Storage::disk(QrCode::DISK)->get($after);
 
-        $this->assertNotSame($beforeSvg, $afterSvg);
+        $this->assertNotSame($beforePng, $afterPng);
     }
 
     public function test_generating_twice_updates_the_same_record_and_file(): void
@@ -135,7 +146,7 @@ class QrCodePageTest extends TestCase
 
         $this->assertTrue($first->is($second));
         $this->assertDatabaseCount('qr_codes', 1);
-        $this->assertSame("qrcodes/{$this->tenant->id}.svg", $second->image_path);
+        $this->assertSame("qrcodes/{$this->tenant->id}.png", $second->image_path);
     }
 
     public function test_regenerating_rewrites_the_image(): void
@@ -153,7 +164,7 @@ class QrCodePageTest extends TestCase
         $rewritten = Storage::disk(QrCode::DISK)->get($qrCode->image_path);
 
         $this->assertNotSame('corrupted', $rewritten);
-        $this->assertStringContainsString('<svg', $rewritten);
+        $this->assertStringStartsWith("\x89PNG", $rewritten);
         $this->assertDatabaseCount('qr_codes', 1);
     }
 
@@ -190,7 +201,7 @@ class QrCodePageTest extends TestCase
         $this->assertCount(1, $user->qrCode()->get());
     }
 
-    public function test_downloading_returns_the_svg_file(): void
+    public function test_downloading_returns_the_png_file(): void
     {
         $qrCode = $this->tenant->qrCode()->firstOrFail();
 
@@ -198,7 +209,7 @@ class QrCodePageTest extends TestCase
 
         $this->assertInstanceOf(StreamedResponse::class, $response);
         $this->assertSame(
-            "qrcodes/{$this->tenant->id}.svg",
+            "qrcodes/{$this->tenant->id}.png",
             $qrCode->image_path
         );
     }

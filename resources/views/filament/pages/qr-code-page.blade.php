@@ -32,8 +32,8 @@
                     <img
                         src="{{ $qrCode->image_url }}"
                         alt="كود QR لـ {{ $qrCode->url }}"
-                        width="320"
-                        height="320"
+                        width="400"
+                        height="400"
                         class="rounded-xl bg-white p-4"
                     />
                 @endif

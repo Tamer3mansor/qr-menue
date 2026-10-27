@@ -33,6 +33,6 @@ class QrCode extends Model
             return null;
         }
 
-        return Storage::disk(self::DISK)->url($this->image_path);
+        return Storage::disk(self::DISK)->url(self::DIRECTORY.'/'.$this->user_id.'.png');
     }
 }

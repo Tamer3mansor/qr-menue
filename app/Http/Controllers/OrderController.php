@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\CartService;
 use App\Traits\ResolvesTenant;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -142,6 +144,51 @@ class OrderController extends Controller
             'delivery_address' => $order->delivery_address,
             'total' => (float) $order->total,
             'message' => 'تم استلام طلبك بنجاح',
+        ]);
+    }
+
+    /**
+     * The public tracking page: the same lookup as the JSON endpoint, rendered
+     * so a customer can bookmark or share the result.
+     */
+    public function trackPage(Request $request, string $slug, ?string $number = null): View
+    {
+        $tenant = $this->resolveTenant($slug);
+
+        if (! $tenant->hasRunningSubscription()) {
+            return view('website.subscription-ended', ['user' => $tenant]);
+        }
+
+        $number = filled($number) ? $number : $request->query('number');
+        $number = filled($number) ? trim((string) $number) : null;
+
+        $order = null;
+        $error = null;
+
+        if (filled($number)) {
+            if (! ctype_digit($number)) {
+                $error = 'رقم الطلب غير صحيح.';
+            } else {
+                $order = Order::query()
+                    ->where('tenant_order_number', (int) $number)
+                    ->where('user_id', $tenant->getKey())
+                    ->with('items')
+                    ->first();
+
+                if ($order === null) {
+                    $error = 'لم نجد طلباً بهذا الرقم.';
+                }
+            }
+        }
+
+        return view('order.track', [
+            'tenant' => $tenant,
+            'settings' => $tenant->settings,
+            'slug' => $slug,
+            'number' => $number,
+            'order' => $order,
+            'error' => $error,
+            'currency' => Setting::currencyFor($tenant),
         ]);
     }
 

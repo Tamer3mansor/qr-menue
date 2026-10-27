@@ -18,6 +18,13 @@ Route::get('/menu/{slug}', [MenuController::class, 'show'])->name('menu.show');
 Route::get('/site/{slug}', [WebsiteController::class, 'show'])->name('site.show');
 
 /*
+| The tracking page is public and can also be reached straight from the order
+| success modal, which passes the order number in the path.
+*/
+Route::get('/site/{slug}/track', [OrderController::class, 'trackPage'])->name('site.track');
+Route::get('/site/{slug}/track/{number}', [OrderController::class, 'trackPage'])->name('site.track.number');
+
+/*
 | The visitor chatbot is public, so it is throttled to keep a single session
 | from running up the restaurant's AI bill.
 */

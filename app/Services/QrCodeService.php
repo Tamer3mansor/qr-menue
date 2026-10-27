@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\QrCode;
 use App\Models\User;
+use BaconQrCode\Common\ErrorCorrectionLevel;
+use BaconQrCode\Encoder\Encoder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -15,6 +17,13 @@ use Throwable;
  */
 class QrCodeService
 {
+    /**
+     * The printed size is large enough to stay sharp on a phone screen.
+     */
+    public const SIZE = 400;
+
+    public const MARGIN = 2;
+
     public function generateForTenant(User $user): QrCode
     {
         $url = $this->menuUrlFor($user);
@@ -26,13 +35,7 @@ class QrCodeService
 
         $this->ensurePublicStorageLink();
 
-        $svg = QrCodeGenerator::format('svg')
-            ->size(500)
-            ->margin(2)
-            ->errorCorrection('M')
-            ->generate($url);
-
-        $disk->put($path, $svg);
+        $disk->put($path, $this->renderPng($url));
 
         if (! $disk->exists($path)) {
             throw new RuntimeException("QR generation failed: [{$path}] was not written to the [".QrCode::DISK.'] disk.');
@@ -42,6 +45,62 @@ class QrCodeService
             ['user_id' => $user->getKey()],
             ['url' => $url, 'image_path' => $path],
         );
+    }
+
+    /**
+     * simple-qrcode renders PNGs through Imagick, which is not installed on every
+     * host. GD is always available with PHP, so it draws the same matrix when
+     * Imagick is missing.
+     */
+    protected function renderPng(string $url): string
+    {
+        if (extension_loaded('imagick')) {
+            return (string) QrCodeGenerator::format('png')
+                ->size(self::SIZE)
+                ->margin(self::MARGIN)
+                ->errorCorrection('H')
+                ->generate($url);
+        }
+
+        return $this->renderPngWithGd($url);
+    }
+
+    protected function renderPngWithGd(string $url): string
+    {
+        $matrix = Encoder::encode($url, ErrorCorrectionLevel::H())->getMatrix();
+
+        $moduleCount = $matrix->getWidth();
+        $totalModules = $moduleCount + (self::MARGIN * 2);
+        $scale = self::SIZE / $totalModules;
+
+        $image = imagecreatetruecolor(self::SIZE, self::SIZE);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        $black = imagecolorallocate($image, 0, 0, 0);
+
+        imagefilledrectangle($image, 0, 0, self::SIZE - 1, self::SIZE - 1, $white);
+
+        for ($y = 0; $y < $moduleCount; $y++) {
+            for ($x = 0; $x < $moduleCount; $x++) {
+                if ($matrix->get($x, $y) !== 1) {
+                    continue;
+                }
+
+                $left = (int) round(($x + self::MARGIN) * $scale);
+                $top = (int) round(($y + self::MARGIN) * $scale);
+                $right = (int) round(($x + self::MARGIN + 1) * $scale) - 1;
+                $bottom = (int) round(($y + self::MARGIN + 1) * $scale) - 1;
+
+                imagefilledrectangle($image, $left, $top, $right, $bottom, $black);
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $contents = (string) ob_get_clean();
+
+        imagedestroy($image);
+
+        return $contents;
     }
 
     /**
@@ -100,6 +159,6 @@ class QrCodeService
      */
     public function imagePathFor(User $user): string
     {
-        return QrCode::DIRECTORY.'/'.$user->getKey().'.svg';
+        return QrCode::DIRECTORY.'/'.$user->getKey().'.png';
     }
 }
